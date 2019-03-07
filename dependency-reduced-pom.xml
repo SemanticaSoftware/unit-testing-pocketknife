@@ -4,8 +4,8 @@
   <groupId>com.semantica</groupId>
   <artifactId>unit-testing-pocketknife</artifactId>
   <name>unit-testing-pocketknife</name>
-  <version>0.0.1-SNAPSHOT</version>
-  <url>http://maven.apache.org</url>
+  <version>0.0.2-SNAPSHOT</version>
+  <url>https://github.com/ahaanstra/unit-testing-pocketknife</url>
   <build>
     <plugins>
       <plugin>
@@ -100,7 +100,7 @@
   <properties>
     <java.version>1.8</java.version>
     <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
-    <com.fasterxml.jackson.artifacts.version>2.9.7</com.fasterxml.jackson.artifacts.version>
+    <com.fasterxml.jackson.artifacts.version>2.9.8</com.fasterxml.jackson.artifacts.version>
     <junit.jupiter.version>5.4.0</junit.jupiter.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
