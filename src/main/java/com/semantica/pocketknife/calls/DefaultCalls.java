@@ -1,4 +1,4 @@
-package com.semantica.pocketknife;
+package com.semantica.pocketknife.calls;
 
 import org.apache.commons.lang3.NotImplementedException;
 

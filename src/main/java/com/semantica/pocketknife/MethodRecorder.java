@@ -14,6 +14,8 @@ import org.hamcrest.Matcher;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 
+import com.semantica.pocketknife.calls.MethodCall;
+
 import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;

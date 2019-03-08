@@ -1,4 +1,4 @@
-package com.semantica.pocketknife;
+package com.semantica.pocketknife.calls;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -56,9 +56,6 @@ public abstract class AbstractCalls<T> {
 	}
 
 	public void registerCall(T method, Object... args) {
-		if (keyClass != Method.class) {
-			throw new IllegalArgumentException("Please use an instance initialized with Method.class as key class.");
-		}
 		MethodCall<T> methodCall = new MethodCall<>(method, args);
 		addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
 	}

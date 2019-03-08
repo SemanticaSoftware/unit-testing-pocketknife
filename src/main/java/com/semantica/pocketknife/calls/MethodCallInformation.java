@@ -1,4 +1,4 @@
-package com.semantica.pocketknife;
+package com.semantica.pocketknife.calls;
 
 public class MethodCallInformation {
 

@@ -1,4 +1,4 @@
-package com.semantica.pocketknife;
+package com.semantica.pocketknife.calls;
 
 public interface Calls<T> {
 
