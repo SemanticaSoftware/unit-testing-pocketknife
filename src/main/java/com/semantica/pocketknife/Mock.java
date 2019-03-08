@@ -4,7 +4,7 @@ import com.semantica.pocketknife.calls.Calls;
 
 public interface Mock {
 
-	public Calls getCalls();
+	public Calls<?> getCalls();
 
 	public void reset();
 

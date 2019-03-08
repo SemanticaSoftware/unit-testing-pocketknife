@@ -1,4 +1,4 @@
-package com.semantica.pocketknife;
+package com.semantica.pocketknife.methodrecorder;
 
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -13,39 +13,14 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
-@SuppressWarnings("unchecked")
-public class Primitives {
+public class RandomValues {
 
-	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(Primitives.class);
-	private static final Map<Class<?>, Object> PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES = new HashMap<Class<?>, Object>();
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RandomValues.class);
 	private static final Random RANDOM = new Random();
 	private static final Objenesis objenesis = new ObjenesisStd();
 	private static final Map<Integer, Class<?>> instancesOf = new HashMap<>();
 
-	public static <T> T defaultValue(Class<T> primitiveOrWrapperType) {
-		return (T) PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.get(primitiveOrWrapperType);
-	}
-
-	static {
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(Boolean.class, false);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(Character.class, '\u0000');
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(Byte.class, (byte) 0);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(Short.class, (short) 0);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(Integer.class, 0);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(Long.class, 0L);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(Float.class, 0F);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(Double.class, 0D);
-
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(boolean.class, false);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(char.class, '\u0000');
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(byte.class, (byte) 0);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(short.class, (short) 0);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(int.class, 0);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(long.class, 0L);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(float.class, 0F);
-		PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.put(double.class, 0D);
-	}
-
+	@SuppressWarnings("unchecked")
 	public static <T> T identifierValue(Class<T> clazz) {
 		if (clazz.isArray()) {
 			return (T) java.lang.reflect.Array.newInstance(clazz.getComponentType(), 1);
@@ -75,7 +50,7 @@ public class Primitives {
 				enhancer.setSuperclass(clazz);
 				enhancer.setCallbackType(MethodInterceptor.class);
 				clazz = enhancer.createClass();
-				Enhancer.registerCallbacks(clazz, new Callback[] { (MethodInterceptor) Primitives::intercept });
+				Enhancer.registerCallbacks(clazz, new Callback[] { (MethodInterceptor) RandomValues::intercept });
 			}
 			T newInstance = objenesis.newInstance(clazz);
 			instancesOf.put(System.identityHashCode(newInstance), requestedClass);
@@ -85,15 +60,16 @@ public class Primitives {
 
 	public static Object intercept(Object obj, java.lang.reflect.Method method, Object[] args, MethodProxy proxy)
 			throws Throwable {
-		if (method.getName().equals("hashCode") && method.getReturnType() == int.class) {
+		if (method.getName().equals("hashCode") && method.getReturnType() == int.class && args.length == 0) {
 			return System.identityHashCode(obj);
-		} else if (method.getName().equals("toString") && method.getReturnType() == String.class) {
+		} else if (method.getName().equals("toString") && method.getReturnType() == String.class && args.length == 0) {
 			return "Identifier dummy instance of class: " + instancesOf.get(System.identityHashCode(obj))
 					+ ", hashCode: " + System.identityHashCode(obj);
-		} else if (method.getName().equals("equals") && method.getReturnType() == boolean.class) {
+		} else if (method.getName().equals("equals") && method.getReturnType() == boolean.class && args.length == 1) {
 			return System.identityHashCode(obj) == System.identityHashCode(args[0]);
 		} else {
 			return null;
 		}
 	}
+
 }

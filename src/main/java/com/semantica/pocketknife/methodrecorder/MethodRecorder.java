@@ -1,4 +1,4 @@
-package com.semantica.pocketknife;
+package com.semantica.pocketknife.methodrecorder;
 
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
@@ -36,7 +36,7 @@ public class MethodRecorder<T> {
 	private static final Objenesis OBJENESIS = new ObjenesisStd();
 	private Class<T> recordedClass;
 	private Method method;
-	private MethodCall methodCall;
+	private MethodCall<Method> methodCall;
 	private T proxy;
 	private Class<T> proxyClass;
 	private Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers = new HashMap<>();
@@ -49,7 +49,7 @@ public class MethodRecorder<T> {
 		this.recordedClass = recordedClass;
 		Enhancer enhancer = new Enhancer();
 		enhancer.setUseCache(false);
-		enhancer.setSuperclass(recordedClass);
+		enhancer.setSuperclass(this.recordedClass);
 		// Only works when class has no-args constructor:
 		// enhancer.setCallback((MethodInterceptor) this::intercept);
 		// this.proxy = (T) enhancer.create();
@@ -59,40 +59,46 @@ public class MethodRecorder<T> {
 		this.proxy = OBJENESIS.newInstance(proxyClass);
 	}
 
+	/**
+	 * Static factory provides an alternative way to instantiate a method recorder.
+	 *
+	 * @param recordedClass
+	 * @return
+	 */
 	public static <T> MethodRecorder<T> recordInvocationsOn(Class<T> recordedClass) {
 		return new MethodRecorder<>(recordedClass);
 	}
 
+	public Class<T> getRecordedClass() {
+		return recordedClass;
+	}
+
+	public T getProxy() {
+		return proxy;
+	}
+
 	/**
 	 * Method interceptor that does not call back any method on the superclass but
-	 * simply
+	 * simply registers the method call and returns a default value for the return
+	 * type.
 	 *
-	 * @param obj
-	 * @param method
-	 * @param args
-	 * @param proxy
-	 * @return
+	 * @param obj    This proxy
+	 * @param method The invoked method
+	 * @param args   The arguments with which the method was invoked
+	 * @param proxy  Can be used for any callbacks to the original method on an
+	 *               instance of the proxy's superclass
+	 * @return Return value for the intercepted method
 	 * @throws Throwable
 	 */
 	public Object intercept(Object obj, java.lang.reflect.Method method, Object[] args, MethodProxy proxy)
 			throws Throwable {
 		this.method = method;
-		this.methodCall = new MethodCall(method, substituteWithMatchingArgs(args));
+		this.methodCall = new MethodCall<>(method, substituteWithMatchingArgs(args));
 		this.captureNumber = 0;
 		this.captureProcessedNumber = 0;
-		if (method.getReturnType() == void.class) {
-			log.debug("Returning null for void Method {} in callback.", method);
-			return null;
-		} else if (method.getReturnType() == int.class) {
-			log.debug("Returning 0 for Method {} in callback.", method);
-			return 0;
-		} else if (method.getReturnType() == boolean.class) {
-			log.debug("Returning false for Method {} in callback.", method);
-			return false;
-		} else {
-			log.debug("Returning null for Method {} in callback.", method);
-			return null;
-		}
+		Object defaultValue = DefaultValues.defaultValue(method.getReturnType());
+		log.debug("Returning {} for void Method {} in callback.", defaultValue, method);
+		return defaultValue;
 	}
 
 	private Object[] substituteWithMatchingArgs(Object[] args) {
@@ -165,119 +171,15 @@ public class MethodRecorder<T> {
 		return getMethod(callableMethodInvoker).getName();
 	}
 
-	public <S> Method getMethod(Callable<S> callableMethodInvoker) {
-		return (Method) getMethodCall(callableMethodInvoker).getMethod();
-	}
-
-	public <S> MethodCall getMethodCall(Callable<S> callableMethodInvoker) {
-		try {
-			callableMethodInvoker.call();
-		} catch (Exception e) {
-			log.debug("Exception was thrown while executing runnable method invoker.", e);
-			throw new FatalTestException(e);
-		}
-		return methodCall;
-	}
-
 	public String getMethodName(ThrowingRunnable runnableMethodInvoker) {
 		return getMethod(runnableMethodInvoker).getName();
-	}
-
-	public Method getMethod(ThrowingRunnable runnableMethodInvoker) {
-		return (Method) getMethodCall(runnableMethodInvoker).getMethod();
-	}
-
-	public MethodCall getMethodCall(ThrowingRunnable runnableMethodInvoker) {
-		try {
-			runnableMethodInvoker.run();
-		} catch (Exception e) {
-			log.debug("Exception was thrown while executing runnable method invoker.", e);
-			throw new FatalTestException(e);
-		}
-		return methodCall;
-	}
-
-	public Method getMethod(Object object) {
-		return method;
-	}
-
-	public Method getMethod(boolean dummy) {
-		return method;
-	}
-
-	public Method getMethod(byte dummy) {
-		return method;
-	}
-
-	public Method getMethod(char dummy) {
-		return method;
-	}
-
-	public Method getMethod(double dummy) {
-		return method;
-	}
-
-	public Method getMethod(float dummy) {
-		return method;
-	}
-
-	public Method getMethod(int dummy) {
-		return method;
-	}
-
-	public Method getMethod(long dummy) {
-		return method;
-	}
-
-	public Method getMethod(short dummy) {
-		return method;
-	}
-
-	public MethodCall getMethodCall() {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(Object object) {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(boolean dummy) {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(byte dummy) {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(char dummy) {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(double dummy) {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(float dummy) {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(int dummy) {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(long dummy) {
-		return methodCall;
-	}
-
-	public MethodCall getMethodCall(short dummy) {
-		return methodCall;
 	}
 
 	public String getMethodName() {
 		return method.getName();
 	}
 
-	public String getMethodName(Object object) {
+	public String getMethodName(Object dummy) {
 		return method.getName();
 	}
 
@@ -313,8 +215,112 @@ public class MethodRecorder<T> {
 		return method.getName();
 	}
 
-	public T getProxy() {
-		return proxy;
+	public <S> Method getMethod(Callable<S> callableMethodInvoker) {
+		return getMethodCall(callableMethodInvoker).getMethod();
+	}
+
+	public Method getMethod(ThrowingRunnable runnableMethodInvoker) {
+		return getMethodCall(runnableMethodInvoker).getMethod();
+	}
+
+	public Method getMethod() {
+		return method;
+	}
+
+	public Method getMethod(Object dummy) {
+		return method;
+	}
+
+	public Method getMethod(boolean dummy) {
+		return method;
+	}
+
+	public Method getMethod(byte dummy) {
+		return method;
+	}
+
+	public Method getMethod(char dummy) {
+		return method;
+	}
+
+	public Method getMethod(double dummy) {
+		return method;
+	}
+
+	public Method getMethod(float dummy) {
+		return method;
+	}
+
+	public Method getMethod(int dummy) {
+		return method;
+	}
+
+	public Method getMethod(long dummy) {
+		return method;
+	}
+
+	public Method getMethod(short dummy) {
+		return method;
+	}
+
+	public <S> MethodCall<Method> getMethodCall(Callable<S> callableMethodInvoker) {
+		try {
+			callableMethodInvoker.call();
+		} catch (Exception e) {
+			log.debug("Exception was thrown while executing runnable method invoker.", e);
+			throw new FatalTestException(e);
+		}
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(ThrowingRunnable runnableMethodInvoker) {
+		try {
+			runnableMethodInvoker.run();
+		} catch (Exception e) {
+			log.debug("Exception was thrown while executing runnable method invoker.", e);
+			throw new FatalTestException(e);
+		}
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall() {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(Object dummy) {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(boolean dummy) {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(byte dummy) {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(char dummy) {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(double dummy) {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(float dummy) {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(int dummy) {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(long dummy) {
+		return methodCall;
+	}
+
+	public MethodCall<Method> getMethodCall(short dummy) {
+		return methodCall;
 	}
 
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz) {
@@ -325,17 +331,35 @@ public class MethodRecorder<T> {
 		return storeAndCreateIdInstanceOfTypeArgument(matcher, clazz, Optional.empty());
 	}
 
+	/**
+	 * Use this method to prevent ambiguity and ensure the Predicate is linked to
+	 * the correct parameter.
+	 *
+	 * @param predicate
+	 * @param clazz
+	 * @param argumentNumber
+	 * @return
+	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz, int argumentNumber) {
 		return storeAndCreateIdInstanceOfTypeArgument(predicate, clazz, Optional.of(argumentNumber));
 	}
 
+	/**
+	 * Use this method to prevent ambiguity and ensure the Matcher is linked to the
+	 * correct parameter.
+	 *
+	 * @param matcher
+	 * @param clazz
+	 * @param argumentNumber
+	 * @return
+	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz, int argumentNumber) {
 		return storeAndCreateIdInstanceOfTypeArgument(matcher, clazz, Optional.of(argumentNumber));
 	}
 
 	private <S> S storeAndCreateIdInstanceOfTypeArgument(Object matcher, Class<S> clazz,
 			Optional<Integer> argumentNumber) {
-		S value = Primitives.identifierValue(clazz);
+		S value = RandomValues.identifierValue(clazz);
 		Class<?> identifierClass = value.getClass();
 		Map<Object, Queue<MatchingArgument>> matchersForClass = matchers.get(identifierClass);
 		if (matchersForClass == null) {
