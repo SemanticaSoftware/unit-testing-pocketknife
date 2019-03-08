@@ -4,18 +4,18 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
-public class MethodCall {
+public class MethodCall<T> {
 
-	private final Object method;
+	private final T method;
 	private final Object[] args;
 
-	public MethodCall(Object method, Object[] args) {
+	public MethodCall(T method, Object[] args) {
 		super();
 		this.method = method;
 		this.args = args;
 	}
 
-	public Object getMethod() {
+	public T getMethod() {
 		return method;
 	}
 
