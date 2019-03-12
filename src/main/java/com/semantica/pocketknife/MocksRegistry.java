@@ -23,12 +23,12 @@ public class MocksRegistry {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MocksRegistry.class);
 
-	private Set<Mock> mocks;
+	private Set<Mock> registeredMocks;
 	private Set<Provider<? extends Mock>> mockProviders;
 
 	public MocksRegistry() {
 		super();
-		mocks = new HashSet<>();
+		registeredMocks = new HashSet<>();
 		mockProviders = new HashSet<>();
 	}
 
@@ -39,7 +39,7 @@ public class MocksRegistry {
 	 */
 	public MocksRegistry(Set<Mock> mocks) {
 		super();
-		this.mocks = mocks;
+		this.registeredMocks = mocks;
 	}
 
 	/**
@@ -49,7 +49,7 @@ public class MocksRegistry {
 	 * @return
 	 */
 	public boolean registerMock(Mock mock) {
-		return mocks.add(mock);
+		return registeredMocks.add(mock);
 	}
 
 	/**
@@ -65,7 +65,7 @@ public class MocksRegistry {
 
 	/**
 	 * Verifies that no more method invocations have occurred on the registered
-	 * mocks than those that have been verified.
+	 * mocks than those invocations that have been verified and removed.
 	 *
 	 * @return {@code true} if all method invocations have been verified and
 	 *         removed, {@code false} otherwise.
@@ -74,9 +74,24 @@ public class MocksRegistry {
 		boolean noMoreMethodInvocationsAnywhere = true;
 		for (Provider<? extends Mock> mockProvider : mockProviders) {
 			Mock mock = mockProvider.get();
-			mocks.add(mock);
+			registeredMocks.add(mock);
 		}
 		mockProviders.clear();
+		for (Mock mock : registeredMocks) {
+			noMoreMethodInvocationsAnywhere &= mock.getCalls().verifyNoMoreMethodInvocations(false);
+		}
+		return noMoreMethodInvocationsAnywhere;
+	}
+
+	/**
+	 * Verifies that no more method invocations have occurred on the given
+	 * {@code mocks} than those invocations that have been verified.
+	 *
+	 * @param mocks The mocks whose method invocations are to be verified
+	 * @return
+	 */
+	public static boolean verifyNoMoreMethodInvocations(Mock... mocks) {
+		boolean noMoreMethodInvocationsAnywhere = true;
 		for (Mock mock : mocks) {
 			noMoreMethodInvocationsAnywhere &= mock.getCalls().verifyNoMoreMethodInvocations(false);
 		}
@@ -93,14 +108,13 @@ public class MocksRegistry {
 	 */
 	public void deregisterMock(Mock mock) {
 		for (Provider<? extends Mock> mockProvider : mockProviders) {
-			mocks.add(mockProvider.get());
+			registeredMocks.add(mockProvider.get());
 		}
 		mockProviders.clear();
-		boolean success = mocks.remove(mock);
-		log.debug("Result of deregistering mock \"{}\" with hash \"{}\": {}", mock.getClass().getSimpleName(),
-				mock.hashCode(), success);
+		boolean success = registeredMocks.remove(mock);
 		if (!success) {
-			throw new IllegalStateException("Mock with class " + mock.getClass().getSimpleName()
+			throw new IllegalStateException("Mock of class " + mock.getClass().getSimpleName() + " and with hash "
+					+ mock.hashCode()
 					+ " tried to deregister itself, but registration could not be found. Unable to deregister.");
 		}
 	}

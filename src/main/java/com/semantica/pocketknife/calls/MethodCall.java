@@ -9,7 +9,7 @@ public class MethodCall<T> {
 	private final T method;
 	private final Object[] args;
 
-	public MethodCall(T method, Object[] args) {
+	public MethodCall(T method, Object... args) {
 		super();
 		this.method = method;
 		this.args = args;

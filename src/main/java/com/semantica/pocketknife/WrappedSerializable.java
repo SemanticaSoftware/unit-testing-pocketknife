@@ -50,9 +50,10 @@ public class WrappedSerializable<S extends Serializable> {
 			}
 		} catch (JsonProcessingException e) {
 			log.error(
-					"In method: {}, called from: {}, error: Problem encountered during serialization. Returning serializable.toString().",
-					Thread.currentThread().getStackTrace()[1], Thread.currentThread().getStackTrace()[2], e);
-			return serializable.toString();
+					"In method: {}, called from: {}, error: Problem encountered during serialization. Returning serializable.toString(): {}.",
+					Thread.currentThread().getStackTrace()[1], Thread.currentThread().getStackTrace()[2],
+					serializable.toString(), e);
+			throw new IllegalStateException(e);
 		}
 
 	}
