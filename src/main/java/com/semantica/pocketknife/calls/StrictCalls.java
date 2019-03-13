@@ -28,22 +28,24 @@ public class StrictCalls<T> extends AbstractCalls<T> implements Calls<T> {
 	protected boolean isSequentiallyCalled(MethodCall<T> queryMethodCall) {
 		boolean isSequentiallyCalled;
 		MethodCall<T> foundMethodCall = getStoredExactMethodCall(queryMethodCall);
+		List<MethodCallInformation> callInfoUnfiltered = null, callInfoFiltered = null;
 		if (foundMethodCall != null) {
-			List<MethodCallInformation> callInfo = calls.get(foundMethodCall).stream()
+			callInfoUnfiltered = calls.get(foundMethodCall);
+			callInfoFiltered = callInfoUnfiltered.stream()
 					.filter(info -> info.getMethodInvocationSequenceNo() == sequentialCallVerificationNo)
 					.collect(Collectors.toList());
-			if (callInfo.size() == 0) {
+			if (callInfoFiltered.size() == 0) {
 				log.error("Registered invocations for method {}:{}{}", foundMethodCall.getMethod(),
 						System.lineSeparator(), getNewlineSeperatedCalls(
 								(entry) -> foundMethodCall.getMethod().equals(entry.getKey().getMethod()), true));
 				isSequentiallyCalled = false;
-			} else if (callInfo.size() != 1) {
+			} else if (callInfoFiltered.size() > 1) {
 				log.error("Registered invocations for method {}:{}{}", foundMethodCall.getMethod(),
 						System.lineSeparator(), getNewlineSeperatedCalls(
 								(entry) -> foundMethodCall.getMethod().equals(entry.getKey().getMethod()), true));
 				throw new IllegalStateException(
 						"Multiple registered method calls found with the same invocation sequence number.");
-			} else {
+			} else { // size == 1
 				sequentialCallVerificationNo++;
 				isSequentiallyCalled = true;
 			}
@@ -51,7 +53,10 @@ public class StrictCalls<T> extends AbstractCalls<T> implements Calls<T> {
 			isSequentiallyCalled = false;
 		}
 		if (isSequentiallyCalled) {
-			calls.remove(foundMethodCall);
+			callInfoUnfiltered.remove(callInfoFiltered.get(0));
+			if (callInfoUnfiltered.size() == 0) {
+				calls.remove(foundMethodCall);
+			}
 		}
 		return isSequentiallyCalled;
 	}
