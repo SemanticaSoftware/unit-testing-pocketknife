@@ -13,12 +13,14 @@ import java.util.stream.Collectors;
 
 import org.hamcrest.Matcher;
 
+import com.semantica.pocketknife.util.TestUtils;
+
 public abstract class AbstractCalls<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(Calls.class);
+	protected final Class<T> keyClass;
 	protected Map<MethodCall<T>, List<MethodCallInformation>> calls = new HashMap<>();
-	private final Class<T> keyClass;
-	private int sequentialCallNo = 0;
+	protected int sequentialCallNo = 0;
 
 	/**
 	 * Creates a Calls registry that is initialized to the given key class.
@@ -57,6 +59,10 @@ public abstract class AbstractCalls<T> {
 
 	public void registerCall(T method, Object... args) {
 		MethodCall<T> methodCall = new MethodCall<>(method, args);
+		addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
+	}
+
+	public void registerCall(MethodCall<T> methodCall) {
 		addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
 	}
 
@@ -171,7 +177,7 @@ public abstract class AbstractCalls<T> {
 			StackTraceElement[] stackTrace = stackTraces.get(i).getStackTraceElements();
 			String tracePrefix = (i < stackTraces.size() - 1 ? " |" : "  ");
 			sb.append(" |").append("__[ StackTrace for method call[").append(i)
-					.append("] (" + getInvocationCount(stackTraces.get(i).getMethodInvocationSequenceNo())
+					.append("] (" + TestUtils.getCount(stackTraces.get(i).getMethodInvocationSequenceNo() + 1)
 							+ " invocation on this mock): ]")
 					.append(System.lineSeparator()).append(tracePrefix)
 					.append(Arrays.stream(stackTrace).skip(2)
@@ -182,21 +188,6 @@ public abstract class AbstractCalls<T> {
 		return sb.toString();
 	}
 
-	private String getInvocationCount(int methodInvocationSequenceNoStartingFromZero) {
-		int methodInvocationSequenceNoStartingFromOne = methodInvocationSequenceNoStartingFromZero + 1;
-		if (methodInvocationSequenceNoStartingFromOne % 10 == 1 && methodInvocationSequenceNoStartingFromOne != 11) {
-			return methodInvocationSequenceNoStartingFromOne + "st";
-		} else if (methodInvocationSequenceNoStartingFromOne % 10 == 2
-				&& methodInvocationSequenceNoStartingFromOne != 12) {
-			return methodInvocationSequenceNoStartingFromOne + "nd";
-		} else if (methodInvocationSequenceNoStartingFromOne % 10 == 3
-				&& methodInvocationSequenceNoStartingFromOne != 13) {
-			return methodInvocationSequenceNoStartingFromOne + "rd";
-		} else {
-			return methodInvocationSequenceNoStartingFromOne + "th";
-		}
-	}
-
 	public void traceLogMethodCall() {
 		log.trace("In method: " + Thread.currentThread().getStackTrace()[3] + ", called from: "
 				+ Thread.currentThread().getStackTrace()[4]);
@@ -205,18 +196,6 @@ public abstract class AbstractCalls<T> {
 	public void reset() {
 		calls.clear();
 		sequentialCallNo = 0;
-	}
-
-	/*
-	 * Not used
-	 */
-	protected boolean anyMatcherPresent(Object[] args) {
-		for (Object arg : args) {
-			if (arg instanceof Matcher || arg instanceof Predicate) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 }

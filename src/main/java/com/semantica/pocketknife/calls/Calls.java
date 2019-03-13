@@ -6,6 +6,8 @@ public interface Calls<T> {
 
 	public void registerCall(T method, Object... args);
 
+	public void registerCall(MethodCall<T> methodCall);
+
 	public boolean verifyNoMoreMethodInvocations();
 
 	public boolean verifyNoMoreMethodInvocations(boolean printStackTrace);
