@@ -96,7 +96,6 @@ public class MocksRegistryTest {
 		Mock verifiedmockMock2 = Mockito.mock(Mock.class);
 		Mockito.doReturn(callsMock2).when(verifiedmockMock2).getCalls();
 		Mockito.when(callsMock2.verifyNoMoreMethodInvocations(false)).thenReturn(true);
-
 		assert MocksRegistry.verifyNoMoreMethodInvocations(verifiedmockMock1, verifiedmockMock2);
 
 		Mockito.verify(callsMock1, Mockito.times(1)).verifyNoMoreMethodInvocations(false);

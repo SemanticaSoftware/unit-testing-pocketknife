@@ -19,24 +19,50 @@ public class WrappedSerializable<S extends Serializable> {
 	private static ObjectMapper objectToYamlMapper = new ObjectMapper(new YAMLFactory());
 	private SerializationType defaultSerializationType;
 
+	/**
+	 * Constructs a WrappedSerializable object around a Serializable object and sets
+	 * the default serialization type used by {@link #toString()}.
+	 *
+	 * @param serializable             The wrapped object used in the unit test
+	 * @param defaultSerializationType The default serialization type used by
+	 *                                 {@link #toString()}
+	 */
 	public WrappedSerializable(S serializable, SerializationType defaultSerializationType) {
 		super();
 		this.serializable = serializable;
 		this.defaultSerializationType = defaultSerializationType;
 	}
 
+	/**
+	 *
+	 * @return The wrapped object
+	 */
 	public S getObject() {
 		return serializable;
 	}
 
+	/**
+	 *
+	 * @return The JSON representation of the wrapped object
+	 * @throws JsonProcessingException
+	 */
 	public String getJson() throws JsonProcessingException {
 		return objectToJsonMapper.writeValueAsString(serializable);
 	}
 
+	/**
+	 *
+	 * @return The YAML representation of the wrapped object
+	 * @throws JsonProcessingException
+	 */
 	public String getYaml() throws JsonProcessingException {
 		return objectToYamlMapper.writeValueAsString(serializable);
 	}
 
+	/**
+	 * Serializes the wrapped serializable object to the default serialization type.
+	 *
+	 */
 	@Override
 	public String toString() {
 		try {
