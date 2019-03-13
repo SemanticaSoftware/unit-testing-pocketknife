@@ -28,7 +28,7 @@ public abstract class AbstractCalls<T> {
 	 * @param methodClass Determines the class that will be used to store methods.
 	 *                    Allowed values are String.class or Method.class
 	 */
-	public AbstractCalls(Class<T> methodClass) {
+	protected AbstractCalls(Class<T> methodClass) {
 		super();
 		if (methodClass != String.class && methodClass != Method.class) {
 			throw new IllegalArgumentException(
@@ -37,14 +37,6 @@ public abstract class AbstractCalls<T> {
 		this.keyClass = methodClass;
 	}
 
-	/**
-	 * Register a method call. The method name is inferred from the stack trace.
-	 * Only available when T is String, i.e. when String.class is used as the key
-	 * class in the constructor for this Calls instance.
-	 *
-	 * @param args The arguments that have been used in the call to the method being
-	 *             registered (cannot be extracted from the stack trace).
-	 */
 	public void registerCall(Object... args) {
 		if (keyClass == String.class) {
 			traceLogMethodCall();

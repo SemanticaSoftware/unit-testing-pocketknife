@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 
 public class ScrictCallsTest {
 
+	private static final boolean NO_STACK_TRACE = false;
+
 	public void testMethodA(Object a) {
 	}
 
@@ -20,7 +22,7 @@ public class ScrictCallsTest {
 		MethodCall<Method> methodCall = new MethodCall<Method>(testMethod, args);
 
 		strictCalls.registerCall(testMethod, args);
-		assert strictCalls.verifyNoMoreMethodInvocations() == false;
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert strictCalls.verifyStrictlyAndRemoveCall(methodCall);
 		assert strictCalls.verifyNoMoreMethodInvocations();
@@ -39,7 +41,7 @@ public class ScrictCallsTest {
 		strictCalls.registerCall(testMethodA, args);
 		strictCalls.registerCall(testMethodB, args);
 
-		assert strictCalls.verifyNoMoreMethodInvocations() == false;
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 		assert strictCalls.verifyStrictlyAndRemoveCall(methodCallA);
 		assert strictCalls.verifyStrictlyAndRemoveCall(methodCallB);
 		assert strictCalls.verifyNoMoreMethodInvocations();
@@ -58,7 +60,7 @@ public class ScrictCallsTest {
 		strictCalls.registerCall(testMethodA, args);
 		strictCalls.registerCall(testMethodB, args);
 
-		assert strictCalls.verifyNoMoreMethodInvocations() == false;
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 		assert strictCalls.verifyStrictlyAndRemoveCall(methodCallB) == false;
 	}
 
@@ -71,10 +73,10 @@ public class ScrictCallsTest {
 
 		strictCalls.registerCall(testMethod, args);// duplicate calls
 		strictCalls.registerCall(testMethod, args);
-		assert strictCalls.verifyNoMoreMethodInvocations() == false;
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert strictCalls.verifyStrictlyAndRemoveCall(methodCall);
-		assert strictCalls.verifyNoMoreMethodInvocations() == false;
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 		assert strictCalls.verifyStrictlyAndRemoveCall(methodCall);
 		assert strictCalls.verifyNoMoreMethodInvocations();
 	}
@@ -92,7 +94,7 @@ public class ScrictCallsTest {
 		Object arg = new Object();
 
 		Calls<String> defaultCalls = testMethodWithAlternativeInvocationRegistration(arg);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyStrictlyAndRemoveCall(methodName, arg);
 		assert defaultCalls.verifyNoMoreMethodInvocations();
@@ -108,11 +110,11 @@ public class ScrictCallsTest {
 		MethodCall<Method> methodCallB = new MethodCall<Method>(testMethodB, args);
 
 		strictCalls.registerCall(testMethodA, args);
-		assert strictCalls.verifyNoMoreMethodInvocations() == false;
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 		strictCalls.reset();
 		assert strictCalls.verifyNoMoreMethodInvocations();
 		strictCalls.registerCall(testMethodB, args);
-		assert strictCalls.verifyNoMoreMethodInvocations() == false;
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert strictCalls.verifyStrictlyAndRemoveCall(methodCallA) == false;
 		assert strictCalls.verifyStrictlyAndRemoveCall(methodCallB);

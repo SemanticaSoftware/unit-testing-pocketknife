@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 
 public class DefaultCallsTest {
 
+	private static final boolean NO_STACK_TRACE = false;
+
 	public void testMethod(Object a) {
 	}
 
@@ -22,7 +24,7 @@ public class DefaultCallsTest {
 		MethodCall<Method> methodCall = new MethodCall<Method>(testMethod, args);
 
 		defaultCalls.registerCall(testMethod, args);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyCall(1, methodCall);
 		assert defaultCalls.verifyAndRemoveCall(1, methodCall);
@@ -37,7 +39,7 @@ public class DefaultCallsTest {
 		defaultCalls.registerCall(testMethod, args);
 
 		MethodCall<Method> methodCallWithMatchers = new MethodCall<Method>(testMethod, Matchers.any(Object.class));
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyCall(1, methodCallWithMatchers);
 		assert defaultCalls.verifyAndRemoveCall(1, methodCallWithMatchers);
@@ -53,7 +55,7 @@ public class DefaultCallsTest {
 
 		MethodCall<Method> methodCallWithMatchers = new MethodCall<Method>(testMethod,
 				(Predicate<Object>) object -> object instanceof Object);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyCall(1, methodCallWithMatchers);
 		assert defaultCalls.verifyAndRemoveCall(1, methodCallWithMatchers);
@@ -89,7 +91,7 @@ public class DefaultCallsTest {
 		 */
 		@SuppressWarnings("unchecked")
 		Calls<Method> defaultCalls = (Calls<Method>) testMethod.invoke(this, args);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		/*
 		 * Assert that we can verify and remove the call using a MethodCall object with
@@ -121,7 +123,7 @@ public class DefaultCallsTest {
 		Object[] args = { true, false, Arrays.asList(1, 2, 3), null, new Object[] { 1, 2, 3 }, objectArray };
 		@SuppressWarnings("unchecked")
 		Calls<Method> defaultCalls = (Calls<Method>) testMethod.invoke(this, args);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		/*
 		 * Assert that we can verify and remove the call using a MethodCall object with
@@ -150,7 +152,7 @@ public class DefaultCallsTest {
 		MethodCall<Method> methodCall = new MethodCall<Method>(testMethod, args);
 		@SuppressWarnings("unchecked")
 		Calls<Method> defaultCalls = (Calls<Method>) testMethod.invoke(this, args);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyCall(1, methodCall);
 		assert defaultCalls.verifyAndRemoveCall(1, methodCall);
@@ -170,7 +172,7 @@ public class DefaultCallsTest {
 		Object arg = new Object();
 
 		Calls<String> defaultCalls = testMethodWithAlternativeInvocationRegistration(arg);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyCall(1, methodName, arg);
 		assert defaultCalls.verifyAndRemoveCall(1, methodName, arg);
@@ -188,13 +190,13 @@ public class DefaultCallsTest {
 		MethodCall<Method> methodCall = new MethodCall<Method>(registeredTestMethod, registeredArgs);
 
 		defaultCalls.registerCall(methodCall);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		Method otherTestMethod = this.getClass().getMethod("otherTestMethod", Object.class);
 		MethodCall<Method> otherMethodCall = new MethodCall<Method>(otherTestMethod, registeredArgs);
 		assert defaultCalls.verifyCall(1, otherMethodCall) == false;
 		assert defaultCalls.verifyAndRemoveCall(1, otherMethodCall) == false;
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 	}
 
 	@Test
@@ -205,13 +207,13 @@ public class DefaultCallsTest {
 		MethodCall<Method> methodCall = new MethodCall<Method>(registeredTestMethod, registeredArgs);
 
 		defaultCalls.registerCall(methodCall);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		Object[] otherArgs = { new Object() }; // i.e. other instance
 		MethodCall<Method> otherMethodCall = new MethodCall<Method>(registeredTestMethod, otherArgs);
 		assert defaultCalls.verifyCall(1, otherMethodCall) == false;
 		assert defaultCalls.verifyAndRemoveCall(1, otherMethodCall) == false;
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 	}
 
 	@Test
@@ -223,12 +225,12 @@ public class DefaultCallsTest {
 		MethodCall<Method> methodCall = new MethodCall<Method>(registeredTestMethod, registeredArgs);
 
 		defaultCalls.registerCall(methodCall);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyCall(0, methodCall) == false;
 		assert defaultCalls.verifyCall(-1, methodCall) == false;
 		assert defaultCalls.verifyAndRemoveCall(2, methodCall) == false;
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 	}
 
 	@Test
@@ -251,7 +253,7 @@ public class DefaultCallsTest {
 		MethodCall<Method> methodCall = new MethodCall<Method>(testMethod, args);
 
 		defaultCalls.registerCall(testMethod, args);
-		assert defaultCalls.verifyNoMoreMethodInvocations() == false;
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 		assert defaultCalls.verifyCall(1, methodCall);
 
 		defaultCalls.reset();
