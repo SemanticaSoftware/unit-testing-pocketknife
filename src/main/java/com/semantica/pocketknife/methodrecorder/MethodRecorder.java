@@ -3,10 +3,12 @@ package com.semantica.pocketknife.methodrecorder;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 
@@ -23,23 +25,15 @@ import net.sf.cglib.proxy.MethodProxy;
 
 public class MethodRecorder<T> {
 
-	private static class FatalTestException extends RuntimeException {
-		private static final long serialVersionUID = 1L;
-
-		public FatalTestException(Throwable cause) {
-			super(cause);
-		}
-
-	}
-
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MethodRecorder.class);
 	private static final Objenesis OBJENESIS = new ObjenesisStd();
-	private Class<T> recordedClass;
+	private final Class<T> recordedClass;
+	private final Class<T> proxyClass;
+	private final T proxy;
+	private final Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers = new HashMap<>();
+	private final Set<Object> identifierValues = new HashSet<>();
 	private Method method;
 	private MethodCall<Method> methodCall;
-	private T proxy;
-	private Class<T> proxyClass;
-	private Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers = new HashMap<>();
 	private int captureNumber = 0;
 	private int captureProcessedNumber = 0;
 
@@ -50,11 +44,8 @@ public class MethodRecorder<T> {
 		Enhancer enhancer = new Enhancer();
 		enhancer.setUseCache(false);
 		enhancer.setSuperclass(this.recordedClass);
-		// Only works when class has no-args constructor:
-		// enhancer.setCallback((MethodInterceptor) this::intercept);
-		// this.proxy = (T) enhancer.create();
 		enhancer.setCallbackType(MethodInterceptor.class);
-		proxyClass = enhancer.createClass();
+		this.proxyClass = enhancer.createClass();
 		Enhancer.registerCallbacks(proxyClass, new Callback[] { (MethodInterceptor) this::intercept });
 		this.proxy = OBJENESIS.newInstance(proxyClass);
 	}
@@ -69,10 +60,21 @@ public class MethodRecorder<T> {
 		return new MethodRecorder<>(recordedClass);
 	}
 
+	/**
+	 * Gets the proxy superclass of the proxy instance on which method invocations
+	 * are recorded.
+	 *
+	 * @return The proxy superclass
+	 */
 	public Class<T> getRecordedClass() {
 		return recordedClass;
 	}
 
+	/**
+	 * Gets the proxy instance on which methods should be invoked to be recorded.
+	 *
+	 * @return The proxy
+	 */
 	public T getProxy() {
 		return proxy;
 	}
@@ -92,13 +94,28 @@ public class MethodRecorder<T> {
 	 */
 	public Object intercept(Object obj, java.lang.reflect.Method method, Object[] args, MethodProxy proxy)
 			throws Throwable {
+		AmbiguousArgumentsUtil.checkForIdentifierAmbiguity(args, identifierValues, matchers);
+		this.identifierValues.clear();
 		this.method = method;
 		this.methodCall = new MethodCall<>(method, substituteWithMatchingArgs(args));
 		this.captureNumber = 0;
 		this.captureProcessedNumber = 0;
+		if (!this.matchers.isEmpty()) {
+			throw new IllegalStateException(
+					"Matchers not empty after substituting args with matchers for constructing new MethodCall.");
+		}
 		Object defaultValue = DefaultValues.defaultValue(method.getReturnType());
-		log.debug("Returning {} for void Method {} in callback.", defaultValue, method);
+		log.debug("Returning {} for method {} in interceptor.", defaultValue, method);
 		return defaultValue;
+	}
+
+	public void reset() {
+		this.method = null;
+		this.methodCall = null;
+		this.matchers.clear();
+		this.identifierValues.clear();
+		this.captureNumber = 0;
+		this.captureProcessedNumber = 0;
 	}
 
 	private Object[] substituteWithMatchingArgs(Object[] args) {
@@ -359,20 +376,29 @@ public class MethodRecorder<T> {
 
 	private <S> S storeAndCreateIdInstanceOfTypeArgument(Object matcher, Class<S> clazz,
 			Optional<Integer> argumentNumber) {
-		S value = RandomValues.identifierValue(clazz);
-		Class<?> identifierClass = value.getClass();
+		S identifierValue = RandomValues.identifierValue(clazz);
+		identifierValues.add(identifierValue);
+		Class<?> identifierClass = identifierValue.getClass();
 		Map<Object, Queue<MatchingArgument>> matchersForClass = matchers.get(identifierClass);
 		if (matchersForClass == null) {
 			matchersForClass = new HashMap<>();
 			matchers.put(identifierClass, matchersForClass);
 		}
-		Queue<MatchingArgument> matcherArgumentsForSameIdentifier = matchersForClass.get(value);
+		Queue<MatchingArgument> matcherArgumentsForSameIdentifier = matchersForClass.get(identifierValue);
 		if (matcherArgumentsForSameIdentifier == null) {
 			matcherArgumentsForSameIdentifier = new ArrayDeque<>();
-			matchersForClass.put(value, matcherArgumentsForSameIdentifier);
+			matchersForClass.put(identifierValue, matcherArgumentsForSameIdentifier);
 		}
 		matcherArgumentsForSameIdentifier.add(new MatchingArgument(captureNumber++, matcher, argumentNumber));
-		return value;
+		return identifierValue;
+	}
+
+	static class FatalTestException extends RuntimeException {
+		private static final long serialVersionUID = 1L;
+
+		public FatalTestException(Throwable cause) {
+			super(cause);
+		}
 	}
 
 }
