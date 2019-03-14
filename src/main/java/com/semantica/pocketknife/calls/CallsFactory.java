@@ -17,8 +17,8 @@ public class CallsFactory {
 	 * @return A Calls object that uses default mock verification. Method calls can
 	 *         be registered simply only passing the method arguments.
 	 */
-	public static Calls<String> getDefaultCallsUsingStrings() {
-		return getCalls(CallType.Default, String.class);
+	public static DefaultCalls<String> getDefaultCallsUsingStrings() {
+		return (DefaultCalls<String>) getCalls(CallType.Default, String.class);
 	}
 
 	/**
@@ -29,8 +29,8 @@ public class CallsFactory {
 	 * @return A Calls object that uses strict mock verification. Method calls can
 	 *         be registered simply only passing the method arguments.
 	 */
-	public static Calls<String> getStrictCallsUsingStrings() {
-		return getCalls(CallType.Strict, String.class);
+	public static StrictCalls<String> getStrictCallsUsingStrings() {
+		return (StrictCalls<String>) getCalls(CallType.Strict, String.class);
 	}
 
 	/**
@@ -42,8 +42,8 @@ public class CallsFactory {
 	 *         to be registered by passing both a java.lang.reflect.Method and an
 	 *         array of arguments.
 	 */
-	public static Calls<Method> getDefaultCalls() {
-		return getCalls(CallType.Default, Method.class);
+	public static DefaultCalls<Method> getDefaultCalls() {
+		return (DefaultCalls<Method>) getCalls(CallType.Default, Method.class);
 	}
 
 	/**
@@ -55,8 +55,8 @@ public class CallsFactory {
 	 *         to be registered by passing both a java.lang.reflect.Method and an
 	 *         array of arguments.
 	 */
-	public static Calls<Method> getStrictCalls() {
-		return getCalls(CallType.Strict, Method.class);
+	public static StrictCalls<Method> getStrictCalls() {
+		return (StrictCalls<Method>) getCalls(CallType.Strict, Method.class);
 	}
 
 	/**
@@ -75,9 +75,9 @@ public class CallsFactory {
 	public static <T> Calls<T> getCalls(CallType callType, Class<T> methodIdentifierClass) {
 		switch (callType) {
 		case Strict:
-			return new StrictCalls<>(methodIdentifierClass);
+			return new StrictCallsRegistry<>(methodIdentifierClass);
 		case Default:
-			return new DefaultCalls<>(methodIdentifierClass);
+			return new CallsRegistry<>(methodIdentifierClass);
 		default:
 			throw new NotImplementedException("Unknown " + CallType.class.getSimpleName());
 		}

@@ -18,7 +18,7 @@ public class DefaultCallsTest {
 
 	@Test
 	public void shouldVerifyAndRemoveCallMatchingExactValue() throws NoSuchMethodException, SecurityException {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method testMethod = this.getClass().getMethod("testMethod", Object.class);
 		Object[] args = { new Object() };
 		MethodCall<Method> methodCall = new MethodCall<Method>(testMethod, args);
@@ -33,7 +33,7 @@ public class DefaultCallsTest {
 
 	@Test
 	public void shouldVerifyAndRemoveCallMatchingMatcher() throws NoSuchMethodException, SecurityException {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method testMethod = this.getClass().getMethod("testMethod", Object.class);
 		Object[] args = { new Object() };
 		defaultCalls.registerCall(testMethod, args);
@@ -48,7 +48,7 @@ public class DefaultCallsTest {
 
 	@Test
 	public void shouldVerifyAndRemoveCallMatchingPredicate() throws NoSuchMethodException, SecurityException {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method testMethod = this.getClass().getMethod("testMethod", Object.class);
 		Object[] args = { new Object() };
 		defaultCalls.registerCall(testMethod, args);
@@ -64,7 +64,7 @@ public class DefaultCallsTest {
 
 	public Calls<Method> testMethodComplex(boolean a, Boolean b, List<Integer> c, Object d, Object[] e, Object... f) {
 		// Normally this Calls instance is declared as class member in a mock.
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 
 		// This is the typical way in which a mock registers a method call:
 		defaultCalls.registerCall(new Object() {
@@ -90,7 +90,7 @@ public class DefaultCallsTest {
 		 * Java Reflection
 		 */
 		@SuppressWarnings("unchecked")
-		Calls<Method> defaultCalls = (Calls<Method>) testMethod.invoke(this, args);
+		DefaultCalls<Method> defaultCalls = (DefaultCalls<Method>) testMethod.invoke(this, args);
 		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		/*
@@ -122,7 +122,7 @@ public class DefaultCallsTest {
 		 */
 		Object[] args = { true, false, Arrays.asList(1, 2, 3), null, new Object[] { 1, 2, 3 }, objectArray };
 		@SuppressWarnings("unchecked")
-		Calls<Method> defaultCalls = (Calls<Method>) testMethod.invoke(this, args);
+		DefaultCalls<Method> defaultCalls = (DefaultCalls<Method>) testMethod.invoke(this, args);
 		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		/*
@@ -134,8 +134,8 @@ public class DefaultCallsTest {
 		assert defaultCalls.verifyNoMoreMethodInvocations();
 	}
 
-	public Calls<Method> testMethodVarargs(Object... a) {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+	public DefaultCalls<Method> testMethodVarargs(Object... a) {
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		defaultCalls.registerCall(new Object() {
 		}.getClass().getEnclosingMethod(), new Object[] { a }); // Prevents expansion into varargs (only necessary for
 																// single varargs parameter: compare with
@@ -151,7 +151,7 @@ public class DefaultCallsTest {
 																			// into varargs
 		MethodCall<Method> methodCall = new MethodCall<Method>(testMethod, args);
 		@SuppressWarnings("unchecked")
-		Calls<Method> defaultCalls = (Calls<Method>) testMethod.invoke(this, args);
+		DefaultCalls<Method> defaultCalls = (DefaultCalls<Method>) testMethod.invoke(this, args);
 		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyCall(1, methodCall);
@@ -159,8 +159,8 @@ public class DefaultCallsTest {
 		assert defaultCalls.verifyNoMoreMethodInvocations();
 	}
 
-	public Calls<String> testMethodWithAlternativeInvocationRegistration(Object a) {
-		Calls<String> defaultCalls = CallsFactory.getDefaultCallsUsingStrings();
+	public DefaultCalls<String> testMethodWithAlternativeInvocationRegistration(Object a) {
+		DefaultCalls<String> defaultCalls = CallsFactory.getDefaultCallsUsingStrings();
 		defaultCalls.registerCall(a);
 		return defaultCalls;
 	}
@@ -171,7 +171,7 @@ public class DefaultCallsTest {
 		String methodName = "testMethodWithAlternativeInvocationRegistration";
 		Object arg = new Object();
 
-		Calls<String> defaultCalls = testMethodWithAlternativeInvocationRegistration(arg);
+		DefaultCalls<String> defaultCalls = testMethodWithAlternativeInvocationRegistration(arg);
 		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
 
 		assert defaultCalls.verifyCall(1, methodName, arg);
@@ -184,7 +184,7 @@ public class DefaultCallsTest {
 
 	@Test
 	public void shouldNotVerifyAndRemoveCallNotMatchingOnMethodName() throws NoSuchMethodException, SecurityException {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method registeredTestMethod = this.getClass().getMethod("testMethod", Object.class);
 		Object[] registeredArgs = { new Object() };
 		MethodCall<Method> methodCall = new MethodCall<Method>(registeredTestMethod, registeredArgs);
@@ -201,7 +201,7 @@ public class DefaultCallsTest {
 
 	@Test
 	public void shouldNotVerifyAndRemoveCallNotMatchingOnArgs() throws NoSuchMethodException, SecurityException {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method registeredTestMethod = this.getClass().getMethod("testMethod", Object.class);
 		Object[] registeredArgs = { new Object() };
 		MethodCall<Method> methodCall = new MethodCall<Method>(registeredTestMethod, registeredArgs);
@@ -219,7 +219,7 @@ public class DefaultCallsTest {
 	@Test
 	public void shouldNotVerifyAndRemoveCallNotMatchingOnTimesInvoked()
 			throws NoSuchMethodException, SecurityException {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method registeredTestMethod = this.getClass().getMethod("testMethod", Object.class);
 		Object[] registeredArgs = { new Object() };
 		MethodCall<Method> methodCall = new MethodCall<Method>(registeredTestMethod, registeredArgs);
@@ -235,7 +235,7 @@ public class DefaultCallsTest {
 
 	@Test
 	public void shouldVerifyThatMethodNeverInvokedForImaginaryCall() throws NoSuchMethodException, SecurityException {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method neverInvokedTestMethod = this.getClass().getMethod("testMethod", Object.class);
 		Object[] neverUsedArgs = { new Object() };
 		MethodCall<Method> imaginaryMethodCall = new MethodCall<Method>(neverInvokedTestMethod, neverUsedArgs);
@@ -247,7 +247,7 @@ public class DefaultCallsTest {
 
 	@Test
 	public void shouldVerifyCallBeforeButNotAfterReset() throws NoSuchMethodException, SecurityException {
-		Calls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method testMethod = this.getClass().getMethod("testMethod", Object.class);
 		Object[] args = { new Object() };
 		MethodCall<Method> methodCall = new MethodCall<Method>(testMethod, args);

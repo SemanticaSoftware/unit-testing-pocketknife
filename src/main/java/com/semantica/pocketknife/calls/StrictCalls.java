@@ -1,92 +1,32 @@
 package com.semantica.pocketknife.calls;
 
-import java.util.List;
-import java.util.stream.Collectors;
+public interface StrictCalls<T> extends Calls<T> {
 
-import org.apache.commons.lang3.NotImplementedException;
+	/**
+	 * Verifies that a method has been called using strict verification. Method
+	 * calls need to be verified in exactly the same order as they were registered
+	 * by the mock. If the call was successfully verified, this method will remove
+	 * the call from the calls registry. This allows checking that all calls have
+	 * been verified (then the registry is empty) using
+	 * {@link #verifyNoMoreMethodInvocations()}.
+	 *
+	 * @param method The method identifier
+	 * @param args   The arguments, Matchers and/or Predicates with which the method
+	 *               is expected to have been called.
+	 * @return True if the given method has been called with the given arguments the
+	 *         expected number of times, false otherwise.
+	 */
+	public boolean verifyAndRemoveCall(T method, Object... args);
 
-public class StrictCalls<T> extends AbstractCalls<T> implements Calls<T> {
+	/**
+	 * Convenience method that allows the method call to be specified on one
+	 * parameter. Otherwise, the same as
+	 * {@link #verifyAndRemoveCall(Object, Object...)}.
+	 *
+	 * @param methodCall The method call identifier
+	 * @return True if the given method has been called with the given arguments the
+	 *         expected number of times, false otherwise.
+	 */
+	public boolean verifyAndRemoveCall(MethodCall<T> methodCall);
 
-	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(StrictCalls.class);
-	private int sequentialCallVerificationNo = 0;
-
-	protected StrictCalls(Class<T> methodClass) {
-		super(methodClass);
-	}
-
-	@Override
-	public boolean verifyStrictlyAndRemoveCall(T method, Object... args) {
-		MethodCall<T> methodCall = new MethodCall<>(method, args);
-		return isSequentiallyCalled(methodCall);
-	}
-
-	@Override
-	public boolean verifyStrictlyAndRemoveCall(MethodCall<T> methodCall) {
-		return isSequentiallyCalled(methodCall);
-	}
-
-	protected boolean isSequentiallyCalled(MethodCall<T> queryMethodCall) {
-		boolean isSequentiallyCalled;
-		MethodCall<T> foundMethodCall = getStoredExactMethodCall(queryMethodCall);
-		List<MethodCallInformation> callInfoUnfiltered = null, callInfoFiltered = null;
-		if (foundMethodCall != null) {
-			callInfoUnfiltered = calls.get(foundMethodCall);
-			callInfoFiltered = callInfoUnfiltered.stream()
-					.filter(info -> info.getMethodInvocationSequenceNo() == sequentialCallVerificationNo)
-					.collect(Collectors.toList());
-			if (callInfoFiltered.size() == 0) {
-				log.error("Registered invocations for method {}:{}{}", foundMethodCall.getMethod(),
-						System.lineSeparator(), getNewlineSeperatedCalls(
-								(entry) -> foundMethodCall.getMethod().equals(entry.getKey().getMethod()), true));
-				isSequentiallyCalled = false;
-			} else if (callInfoFiltered.size() > 1) {
-				log.error("Registered invocations for method {}:{}{}", foundMethodCall.getMethod(),
-						System.lineSeparator(), getNewlineSeperatedCalls(
-								(entry) -> foundMethodCall.getMethod().equals(entry.getKey().getMethod()), true));
-				throw new IllegalStateException(
-						"Multiple registered method calls found with the same invocation sequence number.");
-			} else { // size == 1
-				sequentialCallVerificationNo++;
-				isSequentiallyCalled = true;
-			}
-		} else {
-			isSequentiallyCalled = false;
-		}
-		if (isSequentiallyCalled) {
-			callInfoUnfiltered.remove(callInfoFiltered.get(0));
-			if (callInfoUnfiltered.size() == 0) {
-				calls.remove(foundMethodCall);
-			}
-		}
-		return isSequentiallyCalled;
-	}
-
-	public void reset() {
-		super.reset();
-		sequentialCallVerificationNo = 0;
-	}
-
-	@Override
-	public boolean verifyCall(int times, T method, Object... args) {
-		throw new NotImplementedException("Default call verification is not available for this "
-				+ this.getClass().getSimpleName() + " instance. Please use verifyStrictlyAndRemoveCall(..).");
-	}
-
-	@Override
-	public boolean verifyCall(int times, MethodCall<T> methodCall) {
-		throw new NotImplementedException("Default call verification is not available for this "
-				+ this.getClass().getSimpleName() + " instance. Please use verifyStrictlyAndRemoveCall(..).");
-	}
-
-	@Override
-	public boolean verifyAndRemoveCall(int times, T method, Object... args) {
-		throw new NotImplementedException("Default call verification is not available for this "
-				+ this.getClass().getSimpleName() + " instance. Please use verifyStrictlyAndRemoveCall(..).");
-	}
-
-	@Override
-	public boolean verifyAndRemoveCall(int times, MethodCall<T> methodCall) {
-		throw new NotImplementedException("Default call verification is not available for this "
-				+ this.getClass().getSimpleName() + " instance. Please use verifyStrictlyAndRemoveCall(..).");
-	}
 }

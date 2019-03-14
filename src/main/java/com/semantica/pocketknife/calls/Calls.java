@@ -4,8 +4,9 @@ public interface Calls<T> {
 
 	/**
 	 * Register a method call. The method name is inferred from the stack trace.
-	 * Only available when T is {@link String}, i.e. when {@code String.class} is
-	 * used as the key class in the constructor for this Calls instance.
+	 * <b>This method is only supported when T is declared {@link String}</b>, i.e.
+	 * when {@code String.class} is used as the key class in the constructor for
+	 * this Calls instance.
 	 *
 	 * This method should be invoked from a mock method to register the mock method
 	 * call.
@@ -71,24 +72,27 @@ public interface Calls<T> {
 	 */
 	public void registerCall(MethodCall<T> methodCall);
 
+	/**
+	 * Verifies whether there were no more registered method invocations on the mock
+	 * than the one that have been verified and removed.
+	 *
+	 * @return True if there were no more method invocations, false otherwise.
+	 */
 	public boolean verifyNoMoreMethodInvocations();
 
+	/**
+	 * Verifies whether there were no more registered method invocations on the mock
+	 * than the one that have been verified and removed.
+	 *
+	 * @param printStackTrace If true, a stack trace will be printed for the method
+	 *                        invocations that have not been verified and removed.
+	 * @return True if there were no more method invocations, false otherwise.
+	 */
 	public boolean verifyNoMoreMethodInvocations(boolean printStackTrace);
 
-	public void traceLogMethodCall();
-
+	/**
+	 * Clears all registered method invocations.
+	 */
 	public void reset();
-
-	public boolean verifyCall(int times, T method, Object... args);
-
-	public boolean verifyCall(int times, MethodCall<T> methodCall);
-
-	public boolean verifyAndRemoveCall(int times, T method, Object... args);
-
-	public boolean verifyAndRemoveCall(int times, MethodCall<T> methodCall);
-
-	public boolean verifyStrictlyAndRemoveCall(T method, Object... args);
-
-	public boolean verifyStrictlyAndRemoveCall(MethodCall<T> methodCall);
 
 }

@@ -13,15 +13,28 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
-public class RandomValues {
+class RandomValues {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RandomValues.class);
 	private static final Random RANDOM = new Random();
 	private static final Objenesis objenesis = new ObjenesisStd();
 	private static final Map<Integer, Class<?>> instancesOf = new HashMap<>();
 
+	/**
+	 * This method returns a new identifier value (new instance or random value)
+	 * matching the given class instance. This method returns a random numeric value
+	 * for each of the numeric primitive and wrapper types. For boolean types it
+	 * returns false. For reference types other than the numeric wrappers, it
+	 * returns a new instance instantiated using the Objenesis library. For
+	 * interfaces and abstract types, it generates a proxy instance from a subclass
+	 * dynamically using cglib. For this proxy instance, the hashCode(), toString()
+	 * and equals() methods are implemented.
+	 *
+	 * @param clazz
+	 * @return
+	 */
 	@SuppressWarnings("unchecked")
-	public static <T> T identifierValue(Class<T> clazz) {
+	static <T> T identifierValue(Class<T> clazz) {
 		if (clazz.isArray()) {
 			return (T) java.lang.reflect.Array.newInstance(clazz.getComponentType(), 1);
 		} else if (clazz == Boolean.class || clazz == boolean.class) {
@@ -58,7 +71,7 @@ public class RandomValues {
 		}
 	}
 
-	public static Object intercept(Object obj, java.lang.reflect.Method method, Object[] args, MethodProxy proxy)
+	private static Object intercept(Object obj, java.lang.reflect.Method method, Object[] args, MethodProxy proxy)
 			throws Throwable {
 		if (method.getName().equals("hashCode") && method.getReturnType() == int.class && args.length == 0) {
 			return System.identityHashCode(obj);

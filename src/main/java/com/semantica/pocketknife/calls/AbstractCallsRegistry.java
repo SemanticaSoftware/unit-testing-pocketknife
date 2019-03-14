@@ -15,7 +15,7 @@ import org.hamcrest.Matcher;
 
 import com.semantica.pocketknife.util.TestUtils;
 
-public abstract class AbstractCalls<T> {
+public abstract class AbstractCallsRegistry<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(Calls.class);
 	protected final Class<T> keyClass;
@@ -28,7 +28,7 @@ public abstract class AbstractCalls<T> {
 	 * @param methodClass Determines the class that will be used to store methods.
 	 *                    Allowed values are String.class or Method.class
 	 */
-	protected AbstractCalls(Class<T> methodClass) {
+	protected AbstractCallsRegistry(Class<T> methodClass) {
 		super();
 		if (methodClass != String.class && methodClass != Method.class) {
 			throw new IllegalArgumentException(
@@ -39,13 +39,14 @@ public abstract class AbstractCalls<T> {
 
 	public void registerCall(Object... args) {
 		if (keyClass == String.class) {
-			traceLogMethodCall();
+			TestUtils.traceLogMethodCall();
 			@SuppressWarnings("unchecked")
 			T methodName = (T) getMethodName(1);
 			MethodCall<T> methodCall = new MethodCall<>(methodName, args);
 			addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
 		} else {
-			throw new IllegalArgumentException("Please use an instance initialized with String.class as key class.");
+			throw new UnsupportedOperationException(
+					"Please use an instance initialized with String.class as key class.");
 		}
 	}
 
@@ -178,11 +179,6 @@ public abstract class AbstractCalls<T> {
 					.append(System.lineSeparator());
 		}
 		return sb.toString();
-	}
-
-	public void traceLogMethodCall() {
-		log.trace("In method: " + Thread.currentThread().getStackTrace()[3] + ", called from: "
-				+ Thread.currentThread().getStackTrace()[4]);
 	}
 
 	public void reset() {
