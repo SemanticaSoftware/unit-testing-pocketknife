@@ -1,14 +1,17 @@
 package com.semantica.pocketknife.methodrecorder;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 class AmbiguousArgumentsUtil {
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AmbiguousArgumentsUtil.class);
 
 	static class AmbiguouslyDefinedMatchersException extends RuntimeException {
 		private static final long serialVersionUID = 1L;
@@ -19,24 +22,36 @@ class AmbiguousArgumentsUtil {
 
 	}
 
-	static void checkForIdentifierAmbiguity(Object[] args, Set<Object> identifierValues,
+	static void checkForIdentifierAmbiguity(Object[] args,
 			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers) {
-		int numberOfMatchers = matchers.values().stream().flatMap(map -> map.values().stream())
-				.map(queue -> queue.size()).reduce((size1, size2) -> size1 + size2).orElse(0);
-		if (numberOfIdentifierValuesInArgs(args, identifierValues) > numberOfMatchers) {
-			Object ambiguousIdentifier = null;
-			if ((ambiguousIdentifier = twoIdentifierValuesNextToEachOther(args, identifierValues, matchers)) != null) {
-				throw new AmbiguouslyDefinedMatchersException("Identifier value \"" + ambiguousIdentifier
-						+ "\" is ambiguous for value type " + ambiguousIdentifier.getClass() + " and Predicate<"
-						+ ambiguousIdentifier.getClass() + "> and/or Matcher<" + ambiguousIdentifier.getClass()
-						+ ">. Please specify argument numbers on *all* matching arguments for this type OR use matchers as arguments for all parameters of this type.");
+		Set<Class<?>> identifierTypesWithAmbiguousIdentifiers = new HashSet<>();
+		for (Class<?> identifierClass : matchers.keySet()) {
+			int numberOfMatchersForIdentifierClass = matchers.get(identifierClass).values().stream()
+					.map(queue -> queue.size()).reduce((size1, size2) -> size1 + size2).orElse(0);
+			if (numberOfIdentifierValuesInArgs(args, matchers, identifierClass) > numberOfMatchersForIdentifierClass) {
+				Object ambiguousIdentifier = null;
+				if ((ambiguousIdentifier = twoIdentifierValuesNextToEachOther(args, matchers,
+						identifierClass)) != null) {
+					log.error(
+							"Identifier value \"{}\" is ambiguous for value type {} and Predicate<{}> and/or Matcher<{}>. Please specify argument numbers on *all* matching arguments for this type OR use matchers as arguments for all parameters of this type.",
+							ambiguousIdentifier, ambiguousIdentifier.getClass(), ambiguousIdentifier.getClass(),
+							ambiguousIdentifier.getClass());
+					identifierTypesWithAmbiguousIdentifiers.add(identifierClass);
+				}
 			}
+		}
+		if (identifierTypesWithAmbiguousIdentifiers.size() > 0) {
+			throw new AmbiguouslyDefinedMatchersException("Identifier values for "
+					+ identifierTypesWithAmbiguousIdentifiers.size() + " value types ("
+					+ identifierTypesWithAmbiguousIdentifiers
+					+ ") are ambiguously defined. Please specify argument numbers on *all* matching arguments for this type OR use matchers as arguments for all parameters of this type. See previous log errors for more details.");
 		}
 	}
 
-	private static int numberOfIdentifierValuesInArgs(Object[] args, Set<Object> identifierValues) {
+	private static int numberOfIdentifierValuesInArgs(Object[] args,
+			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers, Class<?> identifierClass) {
 		int numberOfIdentifierValuesInArgs = 0;
-		for (Object identifier : identifierValues) {
+		for (Object identifier : matchers.get(identifierClass).keySet()) {
 			for (Object arg : args) {
 				if (identifier.equals(arg)) {
 					numberOfIdentifierValuesInArgs++;
@@ -46,15 +61,17 @@ class AmbiguousArgumentsUtil {
 		return numberOfIdentifierValuesInArgs;
 	}
 
-	private static Object twoIdentifierValuesNextToEachOther(Object[] args, Set<Object> identifierValues,
-			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers) {
-		List<Optional<Object>> argsOnlyIdentifiersElseEmpty = constructArgsListWithOnlyIdentifiers(args,
-				identifierValues);
-		return twoIdentifierValuesNextToEachOther(argsOnlyIdentifiersElseEmpty, matchers);
+	private static Object twoIdentifierValuesNextToEachOther(Object[] args,
+			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers, Class<?> identifierClass) {
+		List<Optional<Object>> argsOnlyIdentifiersElseEmpty = constructArgsListWithOnlyIdentifiersForAllIdentifierTypes(
+				args, matchers);
+		return twoIdentifierValuesNextToEachOther(argsOnlyIdentifiersElseEmpty, matchers, identifierClass);
 	}
 
-	private static List<Optional<Object>> constructArgsListWithOnlyIdentifiers(Object[] args,
-			Set<Object> identifierValues) {
+	private static List<Optional<Object>> constructArgsListWithOnlyIdentifiersForAllIdentifierTypes(Object[] args,
+			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers) {
+		Set<Object> identifierValues = matchers.values().stream().flatMap(map -> map.keySet().stream())
+				.collect(Collectors.toSet());
 		List<Optional<Object>> argsOnlyIdentifiersElseEmpty = new ArrayList<>(args.length);
 		for (Object arg : args) {
 			if (identifierValues.contains(arg)) {
@@ -67,12 +84,12 @@ class AmbiguousArgumentsUtil {
 	}
 
 	private static Object twoIdentifierValuesNextToEachOther(List<Optional<Object>> argsOnlyIdentifiersElseEmpty,
-			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers) {
+			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers, Class<?> identifierClass) {
 		Object previousIdentifier = null;
 		for (Optional<Object> identifierElseEmpty : argsOnlyIdentifiersElseEmpty) {
 			try {
 				Object currentIdentifier = identifierElseEmpty.get();
-				if (currentIdentifier.equals(previousIdentifier)) {
+				if (identifierClass.isInstance(currentIdentifier) && currentIdentifier.equals(previousIdentifier)) {
 					Object ambiguousIdentifier = currentIdentifier;
 					long ambiguousMatchersWithoutArgumentNumberSpecification = matchers
 							.get(ambiguousIdentifier.getClass()).get(ambiguousIdentifier).stream()
@@ -80,7 +97,6 @@ class AmbiguousArgumentsUtil {
 					if (ambiguousMatchersWithoutArgumentNumberSpecification > 0L) {
 						return currentIdentifier;
 					}
-					continue;
 				}
 				previousIdentifier = currentIdentifier;
 			} catch (NoSuchElementException e) {

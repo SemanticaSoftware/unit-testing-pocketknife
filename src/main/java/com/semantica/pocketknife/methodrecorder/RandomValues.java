@@ -40,7 +40,7 @@ class RandomValues {
 		} else if (clazz == Boolean.class || clazz == boolean.class) {
 			return (T) Boolean.FALSE;
 		} else if (clazz == Character.class || clazz == char.class) {
-			return (T) (Integer) RANDOM.nextInt(Character.MAX_VALUE + 1);
+			return (T) (Character) (char) RANDOM.nextInt(Character.MAX_VALUE + 1);
 		} else if (clazz == Byte.class || clazz == byte.class) {
 			return (T) (Byte) (byte) (RANDOM.nextInt(Math.abs(Byte.MIN_VALUE) + Byte.MAX_VALUE + 1)
 					- Math.abs(Byte.MIN_VALUE));

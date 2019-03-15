@@ -3,12 +3,10 @@ package com.semantica.pocketknife.methodrecorder;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 
@@ -31,7 +29,6 @@ public class MethodRecorder<T> {
 	private final Class<T> proxyClass;
 	private final T proxy;
 	private final Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers = new HashMap<>();
-	private final Set<Object> identifierValues = new HashSet<>();
 	private Method method;
 	private MethodCall<Method> methodCall;
 	private int captureNumber = 0;
@@ -94,8 +91,7 @@ public class MethodRecorder<T> {
 	 */
 	public Object intercept(Object obj, java.lang.reflect.Method method, Object[] args, MethodProxy proxy)
 			throws Throwable {
-		AmbiguousArgumentsUtil.checkForIdentifierAmbiguity(args, identifierValues, matchers);
-		this.identifierValues.clear();
+		AmbiguousArgumentsUtil.checkForIdentifierAmbiguity(args, matchers);
 		this.method = method;
 		this.methodCall = new MethodCall<>(method, substituteWithMatchingArgs(args));
 		this.captureNumber = 0;
@@ -113,7 +109,6 @@ public class MethodRecorder<T> {
 		this.method = null;
 		this.methodCall = null;
 		this.matchers.clear();
-		this.identifierValues.clear();
 		this.captureNumber = 0;
 		this.captureProcessedNumber = 0;
 	}
@@ -377,7 +372,6 @@ public class MethodRecorder<T> {
 	private <S> S storeAndCreateIdInstanceOfTypeArgument(Object matcher, Class<S> clazz,
 			Optional<Integer> argumentNumber) {
 		S identifierValue = RandomValues.identifierValue(clazz);
-		identifierValues.add(identifierValue);
 		Class<?> identifierClass = identifierValue.getClass();
 		Map<Object, Queue<MatchingArgument>> matchersForClass = matchers.get(identifierClass);
 		if (matchersForClass == null) {
@@ -399,6 +393,21 @@ public class MethodRecorder<T> {
 		public FatalTestException(Throwable cause) {
 			super(cause);
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + captureNumber;
+		result = prime * result + captureProcessedNumber;
+		result = prime * result + ((matchers == null) ? 0 : matchers.hashCode());
+		result = prime * result + ((method == null) ? 0 : method.hashCode());
+		result = prime * result + ((methodCall == null) ? 0 : methodCall.hashCode());
+		result = prime * result + ((proxy == null) ? 0 : proxy.hashCode());
+		result = prime * result + ((proxyClass == null) ? 0 : proxyClass.hashCode());
+		result = prime * result + ((recordedClass == null) ? 0 : recordedClass.hashCode());
+		return result;
 	}
 
 }
