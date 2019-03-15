@@ -25,16 +25,11 @@ class AmbiguousArgumentsUtil {
 				.map(queue -> queue.size()).reduce((size1, size2) -> size1 + size2).orElse(0);
 		if (numberOfIdentifierValuesInArgs(args, identifierValues) > numberOfMatchers) {
 			Object ambiguousIdentifier = null;
-			if ((ambiguousIdentifier = twoIdentifierValuesNextToEachOther(args, identifierValues)) != null) {
-				long ambiguousMatchersWithoutArgumentNumberSpecification = matchers.get(ambiguousIdentifier.getClass())
-						.get(ambiguousIdentifier).stream()
-						.filter(matchingArgument -> !matchingArgument.getArgumentNumber().isPresent()).count();
-				if (ambiguousMatchersWithoutArgumentNumberSpecification != 0L) {
-					throw new AmbiguouslyDefinedMatchersException("Identifier value \"" + ambiguousIdentifier
-							+ "\" is ambiguous for value type " + ambiguousIdentifier.getClass() + " and Predicate<"
-							+ ambiguousIdentifier.getClass() + "> and/or Matcher<" + ambiguousIdentifier.getClass()
-							+ ">. Please specify argument numbers on *all* matching arguments for this type.");
-				}
+			if ((ambiguousIdentifier = twoIdentifierValuesNextToEachOther(args, identifierValues, matchers)) != null) {
+				throw new AmbiguouslyDefinedMatchersException("Identifier value \"" + ambiguousIdentifier
+						+ "\" is ambiguous for value type " + ambiguousIdentifier.getClass() + " and Predicate<"
+						+ ambiguousIdentifier.getClass() + "> and/or Matcher<" + ambiguousIdentifier.getClass()
+						+ ">. Please specify argument numbers on *all* matching arguments for this type OR use matchers as arguments for all parameters of this type.");
 			}
 		}
 	}
@@ -51,10 +46,11 @@ class AmbiguousArgumentsUtil {
 		return numberOfIdentifierValuesInArgs;
 	}
 
-	private static Object twoIdentifierValuesNextToEachOther(Object[] args, Set<Object> identifierValues) {
+	private static Object twoIdentifierValuesNextToEachOther(Object[] args, Set<Object> identifierValues,
+			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers) {
 		List<Optional<Object>> argsOnlyIdentifiersElseEmpty = constructArgsListWithOnlyIdentifiers(args,
 				identifierValues);
-		return twoIdentifierValuesNextToEachOther(argsOnlyIdentifiersElseEmpty);
+		return twoIdentifierValuesNextToEachOther(argsOnlyIdentifiersElseEmpty, matchers);
 	}
 
 	private static List<Optional<Object>> constructArgsListWithOnlyIdentifiers(Object[] args,
@@ -70,13 +66,21 @@ class AmbiguousArgumentsUtil {
 		return argsOnlyIdentifiersElseEmpty;
 	}
 
-	private static Object twoIdentifierValuesNextToEachOther(List<Optional<Object>> argsOnlyIdentifiersElseEmpty) {
+	private static Object twoIdentifierValuesNextToEachOther(List<Optional<Object>> argsOnlyIdentifiersElseEmpty,
+			Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers) {
 		Object previousIdentifier = null;
 		for (Optional<Object> identifierElseEmpty : argsOnlyIdentifiersElseEmpty) {
 			try {
 				Object currentIdentifier = identifierElseEmpty.get();
 				if (currentIdentifier.equals(previousIdentifier)) {
-					return currentIdentifier;
+					Object ambiguousIdentifier = currentIdentifier;
+					long ambiguousMatchersWithoutArgumentNumberSpecification = matchers
+							.get(ambiguousIdentifier.getClass()).get(ambiguousIdentifier).stream()
+							.filter(matchingArgument -> !matchingArgument.getArgumentNumber().isPresent()).count();
+					if (ambiguousMatchersWithoutArgumentNumberSpecification > 0L) {
+						return currentIdentifier;
+					}
+					continue;
 				}
 				previousIdentifier = currentIdentifier;
 			} catch (NoSuchElementException e) {

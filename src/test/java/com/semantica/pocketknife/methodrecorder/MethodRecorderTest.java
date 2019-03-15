@@ -35,6 +35,10 @@ public class MethodRecorderTest {
 			return true;
 		}
 
+		public boolean fourParameters(boolean a, boolean b, boolean c, int d) {
+			return true;
+		}
+
 		public int twoIntParameters(int a, int b) {
 			return 0;
 		}
@@ -136,13 +140,39 @@ public class MethodRecorderTest {
 	}
 
 	@Test
-	public void shouldThrowAmbiguouslyDefinedMatchersExceptionWhenAmbiguousAndOneMatcherArguemtnPositionNotSpecified()
+	public void shouldThrowAmbiguouslyDefinedMatchersExceptionWhenAmbiguousAndOneMatcherArguementPositionNotSpecified()
 			throws NoSuchMethodException, SecurityException {
 		Matcher<Boolean> matcher = Matchers.any(boolean.class);
 		Assertions.assertThrows(AmbiguouslyDefinedMatchersException.class,
 				() -> methodRecorder.getMethodCall(methodRecorder.getProxy().threeBooleanParameters(false,
 						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(matcher, boolean.class, 1),
 						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(matcher, boolean.class))));
+	}
+
+	@Test
+	public void shouldNotThrowAmbiguouslyDefinedMatchersExceptionWhenAllMatcherArgumentPositionsAreSpecified()
+			throws NoSuchMethodException, SecurityException {
+		Matcher<Boolean> matcher = Matchers.any(boolean.class);
+		assert methodRecorder
+				.getMethodCall(methodRecorder.getProxy().threeBooleanParameters(false,
+						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(matcher, boolean.class, 1),
+						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(matcher, boolean.class, 2)))
+				.equals(new MethodCall<>(
+						Methods.class.getMethod("threeBooleanParameters", boolean.class, boolean.class, boolean.class),
+						false, matcher, matcher));
+	}
+
+	@Test
+	public void shouldNotThrowAmbiguouslyDefinedMatchersExceptionWhenAllArgumentsForTypesWithMatchersAreMatchers()
+			throws NoSuchMethodException, SecurityException {
+		Matcher<Boolean> matcher = Matchers.any(boolean.class);
+		assert methodRecorder
+				.getMethodCall(methodRecorder.getProxy().fourParameters(
+						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(matcher, boolean.class),
+						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(matcher, boolean.class),
+						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(matcher, boolean.class), 0))
+				.equals(new MethodCall<>(Methods.class.getMethod("fourParameters", boolean.class, boolean.class,
+						boolean.class, int.class), matcher, matcher, matcher, 0));
 	}
 
 	@Test
