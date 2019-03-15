@@ -399,5 +399,4 @@ public class MethodRecorderTest {
 						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(serializableMatcher, Serializable.class),
 						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(objectArrayMatcher, Object[].class))));
 	}
-
 }

@@ -3,7 +3,6 @@ package com.semantica.pocketknife.methodrecorder;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
@@ -21,6 +20,25 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
+/**
+ * A MethodRecorder can be used to record method invocations. After invoking a
+ * method on its proxy, the corresponding method name, a
+ * {@link java.lang.reflect.Method} or a {@link MethodCall} can be retrieved.
+ *
+ * A typical use it to record method invocations to verify method calls:
+ *
+ * <pre>
+ * <code>
+ * final int ONCE = 1;
+ * assert myMock.getCalls().verifyAndRemoveCall(ONCE,
+				myMockRecorder.getMethodCall(storeMockRecorder.getProxy().myMethod(someArg)));
+ * </code>
+ * </pre>
+ *
+ * @author A. Haanstra
+ *
+ * @param <T>
+ */
 public class MethodRecorder<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MethodRecorder.class);
@@ -34,6 +52,12 @@ public class MethodRecorder<T> {
 	private int captureNumber = 0;
 	private int captureProcessedNumber = 0;
 
+	/**
+	 * Constructs a MethodRecorder instance that can record method invocations for
+	 * the {@code recordedClass} on its proxy instance.
+	 *
+	 * @param recordedClass
+	 */
 	@SuppressWarnings("unchecked")
 	public MethodRecorder(Class<T> recordedClass) {
 		super();
@@ -105,6 +129,11 @@ public class MethodRecorder<T> {
 		return defaultValue;
 	}
 
+	/**
+	 * Resets all internal state. For typical use (recording multiple methods one
+	 * after the other), it is not necessary to invoke this method in between
+	 * recordings.
+	 */
 	public void reset() {
 		this.method = null;
 		this.methodCall = null;
@@ -123,10 +152,8 @@ public class MethodRecorder<T> {
 	private Optional<Object> getOptionalMatchingValue(Object argument, int argumentNumber) {
 		if (argument != null) {
 			Map<Object, Queue<MatchingArgument>> matchersForClass = matchers.get(argument.getClass());
-			debugAid1(argument);
 			if (matchersForClass != null) {
 				Queue<MatchingArgument> matchersForIdentifierValue = matchersForClass.get(argument);
-				debugAid2(argument, matchersForClass);
 				if (matchersForIdentifierValue != null) {
 					MatchingArgument matcherCandidate = matchersForIdentifierValue.element();
 					if (matcherCandidate.getCaptureNumber() == captureProcessedNumber
@@ -148,37 +175,6 @@ public class MethodRecorder<T> {
 		return Optional.empty();
 	}
 
-	// TODO: Remove debug aid
-	private void debugAid1(Object argument) {
-		Class<?> argumentClass = argument.getClass();
-		int argumentHashCode = argument.hashCode();
-
-		Iterator<Class<?>> iterator = matchers.keySet().iterator();
-		Class<?> keyClass1 = null, keyClass2 = null;
-		int hashCode1 = 0, hashCode2 = 0;
-		boolean equals1 = false, equals2 = false;
-		if (iterator.hasNext()) {
-			keyClass1 = iterator.next();
-			hashCode1 = keyClass1.hashCode();
-			equals1 = keyClass1.equals(argumentClass);
-		}
-		if (iterator.hasNext()) {
-			keyClass2 = iterator.next();
-			hashCode2 = keyClass2.hashCode();
-			equals2 = keyClass2.equals(argumentClass);
-		}
-		System.out.println("" + keyClass1 + keyClass2 + hashCode1 + hashCode2 + equals1 + equals2);
-	}
-
-	// TODO: Remove debug aid
-	private void debugAid2(Object argument, Map<Object, Queue<MatchingArgument>> matchersForClass) {
-		Object key = matchersForClass.keySet().toArray(new Object[0])[0];
-		Class<?> clazz = argument.getClass();
-		int hashCode1 = argument.hashCode();
-		int hashCode2 = key.hashCode();
-		boolean equals = key.equals(argument);
-	}
-
 	public <S> String getMethodName(Callable<S> callableMethodInvoker) {
 		return getMethod(callableMethodInvoker).getName();
 	}
@@ -187,6 +183,11 @@ public class MethodRecorder<T> {
 		return getMethod(runnableMethodInvoker).getName();
 	}
 
+	/**
+	 * Retrieve the corresponding method name after invoking a method.
+	 *
+	 * @return
+	 */
 	public String getMethodName() {
 		return method.getName();
 	}
@@ -235,6 +236,12 @@ public class MethodRecorder<T> {
 		return getMethodCall(runnableMethodInvoker).getMethod();
 	}
 
+	/**
+	 * Retrieve the corresponding {@link java.lang.reflect.Method} after invoking a
+	 * method.
+	 *
+	 * @return
+	 */
 	public Method getMethod() {
 		return method;
 	}
@@ -295,6 +302,11 @@ public class MethodRecorder<T> {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the corresponding {@link MethodCall} after invoking a method.
+	 *
+	 * @return
+	 */
 	public MethodCall<Method> getMethodCall() {
 		return methodCall;
 	}
@@ -335,10 +347,37 @@ public class MethodRecorder<T> {
 		return methodCall;
 	}
 
+	/**
+	 * Use this method to wrap predicate matchers in a method call.
+	 * 
+	 * @param predicate
+	 * @param clazz
+	 * @return
+	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz) {
 		return storeAndCreateIdInstanceOfTypeArgument(predicate, clazz, Optional.empty());
 	}
 
+	/**
+	 * Use this method to wrap Matchers in a method call.
+	 *
+	 * Typical use:
+	 *
+	 * <pre>
+	 * <code>
+	 * {@code Matcher<Integer>} matcher = Matchers.any(int.class); // ! Hamcrest matchers do not implement equals(Object obj)
+	 * assert methodRecorder
+	 *    .getMethodCall(methodRecorder.getProxy()
+	 *       .oneParameter((randomIntermediateIdentifier = methodRecorder
+	 *          .storeAndCreateIdInstanceOfTypeArgument(matcher, int.class))))
+	 *    .equals(new {@code MethodCall<>}(Methods.class.getMethod("oneParameter", int.class), matcher));
+	 * </code>
+	 * </pre>
+	 * 
+	 * @param matcher
+	 * @param clazz
+	 * @return
+	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz) {
 		return storeAndCreateIdInstanceOfTypeArgument(matcher, clazz, Optional.empty());
 	}
