@@ -1,5 +1,13 @@
 package com.semantica.pocketknife.calls;
 
+/**
+ * The base Calls interface with methods common to both the {@link DefaultCalls}
+ * and {@link StrictCalls} interfaces.
+ *
+ * @author A. Haanstra
+ *
+ * @param <T>
+ */
 public interface Calls<T> {
 
 	/**

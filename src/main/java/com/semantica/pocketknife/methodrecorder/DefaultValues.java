@@ -3,6 +3,16 @@ package com.semantica.pocketknife.methodrecorder;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Class that contains the default values for each of the Java primitive and
+ * Wrapper types. Also returns null for reference types.
+ *
+ * Adapted from the Mockito package org.mockito.internal.util.Primitives class
+ * (https://github.com/mockito/mockito).
+ *
+ * @author A. Haanstra
+ *
+ */
 @SuppressWarnings("unchecked")
 class DefaultValues {
 

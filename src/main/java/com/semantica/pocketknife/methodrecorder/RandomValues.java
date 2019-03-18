@@ -4,7 +4,9 @@ import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.function.Predicate;
 
+import org.hamcrest.Matcher;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 
@@ -13,6 +15,22 @@ import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
+/**
+ * Class that generates Random or "identifier" values that are used by
+ * {@link MethodRecorder} as an identifier value for matching arguments
+ * ({@link Matcher} or {@link Predicate}. The matching argument is captured by
+ * {@link MethodRecorder#storeAndCreateIdInstanceOfTypeArgument(Matcher, Class)}
+ * or
+ * {@link MethodRecorder#storeAndCreateIdInstanceOfTypeArgument(Predicate, Class)})
+ * and temporarily stored in the {@link MethodRecorder} object, while the
+ * identifier value is returned and used as argument to the method call on
+ * {@link MethodRecorder}'s proxy. When this call with its arguments are parsed,
+ * the matchers are substituted at the positions where the corresponding
+ * identifier values are found.
+ *
+ * @author A. Haanstra
+ *
+ */
 class RandomValues {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RandomValues.class);

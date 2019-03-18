@@ -9,6 +9,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+/**
+ * This class functions to wrap test data object and provide an easy way to
+ * check and compare their json and yaml contents. Also it overrides toString,
+ * returning the object serialized to the default type. This is particulary
+ * useful when the the wrapper object is referenced as Object.
+ *
+ * @author A. Haanstra
+ *
+ * @param <S>
+ */
 public class WrappedSerializable<S extends Serializable> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(WrappedSerializable.class);

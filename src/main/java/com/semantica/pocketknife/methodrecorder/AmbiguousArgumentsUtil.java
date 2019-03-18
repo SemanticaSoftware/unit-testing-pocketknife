@@ -8,8 +8,24 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.hamcrest.Matcher;
+
+/**
+ * Utility class for {@link MethodRecorder}. Contains a single method
+ * {@link #checkForIdentifierAmbiguity(Object[], Map)} that checks an argument
+ * array against a map of matchers to see whether there exists any ambiguity
+ * when {@link Matcher}s or {@link Predicate}s (wrapped by
+ * {@link MethodRecorder#storeAndCreateIdInstanceOfTypeArgument(Matcher, Class)}
+ * or
+ * {@link MethodRecorder#storeAndCreateIdInstanceOfTypeArgument(Predicate, Class)})
+ * have been used as method arguments.
+ *
+ * @author A. Haanstra
+ *
+ */
 class AmbiguousArgumentsUtil {
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AmbiguousArgumentsUtil.class);
 

@@ -1,5 +1,15 @@
 package com.semantica.pocketknife.calls;
 
+import com.semantica.pocketknife.Mock;
+
+/**
+ * The interface that a {@link Mock} should reference its {@link Calls} instance
+ * with when strict call verification is required.
+ *
+ * @author A. Haanstra
+ *
+ * @param <T>
+ */
 public interface StrictCalls<T> extends Calls<T> {
 
 	/**

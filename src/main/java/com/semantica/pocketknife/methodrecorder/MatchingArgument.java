@@ -1,12 +1,26 @@
 package com.semantica.pocketknife.methodrecorder;
 
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.hamcrest.Matcher;
 
-public class MatchingArgument {
+/**
+ * Data class containing all relevant information to a matching argument (as
+ * captured by
+ * {@link MethodRecorder#storeAndCreateIdInstanceOfTypeArgument(Matcher, Class)}
+ * and
+ * {@link MethodRecorder#storeAndCreateIdInstanceOfTypeArgument(Predicate, Class)})
+ * and the matching argument itself. A matching argument can either be a
+ * {@link Matcher} or a {@link Predicate}.
+ *
+ * @author A. Haanstra
+ *
+ */
+class MatchingArgument {
 
 	private int captureNumber;
 	private Object matcher;

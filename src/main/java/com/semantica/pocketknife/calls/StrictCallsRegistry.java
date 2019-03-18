@@ -3,7 +3,17 @@ package com.semantica.pocketknife.calls;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class StrictCallsRegistry<T> extends AbstractCallsRegistry<T> implements StrictCalls<T> {
+/**
+ * The default {@link StrictCalls} implmentation. Features strict call
+ * verification. Each call will need to be verified seperately and in order so
+ * it is not possible to verify the number of times a method has been called
+ * with in a single statement.
+ *
+ * @author A. Haanstra
+ *
+ * @param <T>
+ */
+class StrictCallsRegistry<T> extends AbstractCallsRegistry<T> implements StrictCalls<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(StrictCallsRegistry.class);
 	private int sequentialCallVerificationNo = 0;

@@ -4,6 +4,13 @@ import java.lang.reflect.Method;
 
 import org.apache.commons.lang3.NotImplementedException;
 
+/**
+ * Factory class providing an easy and abstracted way to construct a
+ * {@link Calls} instance.
+ *
+ * @author A. Haanstra
+ *
+ */
 public class CallsFactory {
 
 	public enum CallType {

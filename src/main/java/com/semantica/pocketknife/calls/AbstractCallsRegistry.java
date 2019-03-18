@@ -15,7 +15,15 @@ import org.hamcrest.Matcher;
 
 import com.semantica.pocketknife.util.TestUtils;
 
-public abstract class AbstractCallsRegistry<T> {
+/**
+ * This class contains all common behaviour and data of the
+ * {@link CallsRegistry} and {@linkplain StrictCallsRegistry} classes.
+ *
+ * @author A. Haanstra
+ *
+ * @param <T>
+ */
+abstract class AbstractCallsRegistry<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(Calls.class);
 	protected final Class<T> keyClass;

@@ -4,6 +4,15 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
+/**
+ * Data class representing a method call. Next to the method signature
+ * (represented by the method field when T is {@link java.lang.reflect.Method}),
+ * it also stores the actual arguments a method was called with.
+ *
+ * @author A. Haanstra
+ *
+ * @param <T>
+ */
 public class MethodCall<T> {
 
 	private final T method;

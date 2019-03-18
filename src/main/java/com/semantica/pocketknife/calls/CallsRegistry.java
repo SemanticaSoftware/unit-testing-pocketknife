@@ -1,6 +1,16 @@
 package com.semantica.pocketknife.calls;
 
-public class CallsRegistry<T> extends AbstractCallsRegistry<T> implements DefaultCalls<T> {
+/**
+ * The default {@link DefaultCalls} implementation. Features non-strict method
+ * verification and allows its user to verify multiple equivalent method calls
+ * simultaneously by specifying the number of times a method is expected to have
+ * been called.
+ *
+ * @author A. Haanstra
+ *
+ * @param <T>
+ */
+class CallsRegistry<T> extends AbstractCallsRegistry<T> implements DefaultCalls<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CallsRegistry.class);
 
@@ -28,6 +38,26 @@ public class CallsRegistry<T> extends AbstractCallsRegistry<T> implements Defaul
 	@Override
 	public boolean verifyAndRemoveCall(int times, MethodCall<T> methodCall) {
 		return isCalled(times, methodCall, true);
+	}
+
+	@Override
+	public boolean verifyCall(Invoked timesInvoked, T method, Object... args) {
+		return verifyCall(timesInvoked.getTimes(), method, args);
+	}
+
+	@Override
+	public boolean verifyCall(Invoked timesInvoked, MethodCall<T> methodCall) {
+		return verifyCall(timesInvoked.getTimes(), methodCall);
+	}
+
+	@Override
+	public boolean verifyAndRemoveCall(Invoked timesInvoked, T method, Object... args) {
+		return verifyAndRemoveCall(timesInvoked.getTimes(), method, args);
+	}
+
+	@Override
+	public boolean verifyAndRemoveCall(Invoked timesInvoked, MethodCall<T> methodCall) {
+		return verifyAndRemoveCall(timesInvoked.getTimes(), methodCall);
 	}
 
 	private boolean isCalled(int expectedTimes, MethodCall<T> queryMethodCall, boolean removeCall) {

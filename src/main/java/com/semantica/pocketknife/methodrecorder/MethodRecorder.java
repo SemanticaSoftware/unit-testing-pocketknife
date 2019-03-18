@@ -21,16 +21,20 @@ import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
 /**
- * A MethodRecorder can be used to record method invocations. After invoking a
- * method on its proxy, the corresponding method name, a
- * {@link java.lang.reflect.Method} or a {@link MethodCall} can be retrieved.
+ * A MethodRecorder can be used to record method invocations. It is initialized
+ * with a class on which method calls are to be recorded. The
+ * {@link MethodRecorder} object then creates a proxy instance of this class.
+ * The methods calls to be recorded then should be invoked on this proxy
+ * (obtained by {@link #getProxy()}. After invoking a method on its proxy, the
+ * corresponding method name, a {@link java.lang.reflect.Method} or a
+ * {@link MethodCall} can be retrieved via one of its getMethod* methods.
  *
- * A typical use it to record method invocations to verify method calls:
+ * A typical use is to record method invocations to verify method calls:
  *
  * <pre>
  * <code>
- * final int ONCE = 1;
- * assert myMock.getCalls().verifyAndRemoveCall(ONCE,
+ * final int once = 1;
+ * assert myMock.getCalls().verifyAndRemoveCall(once,
 				myMockRecorder.getMethodCall(storeMockRecorder.getProxy().myMethod(someArg)));
  * </code>
  * </pre>
@@ -349,7 +353,7 @@ public class MethodRecorder<T> {
 
 	/**
 	 * Use this method to wrap predicate matchers in a method call.
-	 * 
+	 *
 	 * @param predicate
 	 * @param clazz
 	 * @return
@@ -373,7 +377,7 @@ public class MethodRecorder<T> {
 	 *    .equals(new {@code MethodCall<>}(Methods.class.getMethod("oneParameter", int.class), matcher));
 	 * </code>
 	 * </pre>
-	 * 
+	 *
 	 * @param matcher
 	 * @param clazz
 	 * @return

@@ -7,7 +7,7 @@ import com.semantica.pocketknife.calls.Calls;
  * be verified on this mock [getCalls()]. (2) The mock instance can be reused
  * over several tests [reset()].
  *
- * @author auke
+ * @author A. Haanstra
  *
  */
 public interface Mock {
