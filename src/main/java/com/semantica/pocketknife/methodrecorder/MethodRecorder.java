@@ -14,6 +14,7 @@ import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 
 import com.semantica.pocketknife.calls.MethodCall;
+import com.semantica.pocketknife.methodrecorder.AmbiguousArgumentsUtil.AmbiguouslyDefinedMatchersException;
 
 import net.sf.cglib.proxy.Callback;
 import net.sf.cglib.proxy.Enhancer;
@@ -23,19 +24,20 @@ import net.sf.cglib.proxy.MethodProxy;
 /**
  * A MethodRecorder can be used to record method invocations. It is initialized
  * with a class on which method calls are to be recorded. The
- * {@link MethodRecorder} object then creates a proxy instance of this class.
- * The methods calls to be recorded then should be invoked on this proxy
- * (obtained by {@link #getProxy()}. After invoking a method on its proxy, the
- * corresponding method name, a {@link java.lang.reflect.Method} or a
+ * {@link MethodRecorder} object creates a proxy instance of this class upon
+ * construction. The methods calls to be recorded should be invoked on this
+ * proxy (obtained by {@link #getProxy()}. After invoking a method on its proxy,
+ * the corresponding method name, a {@link java.lang.reflect.Method} or a
  * {@link MethodCall} can be retrieved via one of its getMethod* methods.
  *
- * A typical use is to record method invocations to verify method calls:
+ * A typical use is to record method invocations when verifying method calls in
+ * a test:
  *
  * <pre>
  * <code>
- * final int once = 1;
- * assert myMock.getCalls().verifyAndRemoveCall(once,
-				myMockRecorder.getMethodCall(storeMockRecorder.getProxy().myMethod(someArg)));
+ * assert myMock.getCalls().verifyAndRemoveCall(
+ *    Invoked.ONCE, myMockRecorder.getMethodCall(
+ *       myMockRecorder.getProxy().someMethod(someArg)));
  * </code>
  * </pre>
  *
@@ -55,6 +57,14 @@ public class MethodRecorder<T> {
 	private MethodCall<Method> methodCall;
 	private int captureNumber = 0;
 	private int captureProcessedNumber = 0;
+
+	static class FatalTestException extends RuntimeException {
+		private static final long serialVersionUID = 1L;
+
+		public FatalTestException(Throwable cause) {
+			super(cause);
+		}
+	}
 
 	/**
 	 * Constructs a MethodRecorder instance that can record method invocations for
@@ -179,113 +189,327 @@ public class MethodRecorder<T> {
 		return Optional.empty();
 	}
 
+	/**
+	 * Returns a method name instead of a {@link MethodCall}, otherwise the same as
+	 * {@link #getMethodCall(Callable)}.
+	 *
+	 * @param callableMethodInvoker The callable that calls the method to be
+	 *                              recorded
+	 * @return The method name of the called method
+	 */
 	public <S> String getMethodName(Callable<S> callableMethodInvoker) {
 		return getMethod(callableMethodInvoker).getName();
 	}
 
+	/**
+	 * Returns a method name instead of a {@link MethodCall}, otherwise the same as
+	 * {@link #getMethodCall(ThrowingRunnable)}.
+	 *
+	 * @param callableMethodInvoker The callable that calls the method to be
+	 *                              recorded
+	 * @return The method name of the called method
+	 */
 	public String getMethodName(ThrowingRunnable runnableMethodInvoker) {
 		return getMethod(runnableMethodInvoker).getName();
 	}
 
 	/**
-	 * Retrieve the corresponding method name after invoking a method.
+	 * Retrieve the corresponding method name after invoking a method. This method
+	 * is not part of the fluent API.
 	 *
-	 * @return
+	 * @return The name of the method recorded, corresponding to the method last
+	 *         invoked on this {@link MethodRecorder}.
 	 */
 	public String getMethodName() {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the name of the recorded method that returned an {@link Object}
+	 * reference. Part of the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@link Object} reference value
+	 *              returned from the method call to this {@link MethodRecorder}'s
+	 *              {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(Object dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code boolean} value. Part of
+	 * the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code boolean} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(boolean dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code byte} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code byte} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(byte dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code char} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code char} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(char dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code double} value. Part of
+	 * the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code double} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(double dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code float} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code float} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(float dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code int} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code int} value returned from the
+	 *              method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(int dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code long} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code long} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(long dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code short} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code short} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The name of the method recorded, corresponding to invoked method.
+	 */
 	public String getMethodName(short dummy) {
 		return method.getName();
 	}
 
+	/**
+	 * Returns a {@link java.lang.reflect.Method} instead of a {@link MethodCall},
+	 * otherwise the same as {@link #getMethodCall(Callable)}.
+	 *
+	 * @param callableMethodInvoker The callable that calls the method to be
+	 *                              recorded
+	 * @return A {@link java.lang.reflect.Method} that identifies the called method
+	 */
 	public <S> Method getMethod(Callable<S> callableMethodInvoker) {
 		return getMethodCall(callableMethodInvoker).getMethod();
 	}
 
+	/**
+	 * Returns a {@link java.lang.reflect.Method} instead of a {@link MethodCall},
+	 * otherwise the same as {@link #getMethodCall(ThrowingRunnable)}.
+	 *
+	 * @param callableMethodInvoker The callable that calls the method to be
+	 *                              recorded
+	 * @return A {@link java.lang.reflect.Method} that identifies the called method
+	 */
 	public Method getMethod(ThrowingRunnable runnableMethodInvoker) {
 		return getMethodCall(runnableMethodInvoker).getMethod();
 	}
 
 	/**
 	 * Retrieve the corresponding {@link java.lang.reflect.Method} after invoking a
-	 * method.
+	 * method. This method is not part of the fluent API.
 	 *
-	 * @return
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to the
+	 *         method last invoked on this {@link MethodRecorder}.
 	 */
 	public Method getMethod() {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned an {@link Object} reference. Part
+	 * of the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@link Object} reference value
+	 *              returned from the method call to this {@link MethodRecorder}'s
+	 *              {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(Object dummy) {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code boolean} value. Part of
+	 * the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code boolean} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(boolean dummy) {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code byte} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code byte} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(byte dummy) {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code char} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code char} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(char dummy) {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code double} value. Part of
+	 * the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code double} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(double dummy) {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code float} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code float} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(float dummy) {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code int} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code int} value returned from the
+	 *              method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(int dummy) {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code long} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code long} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(long dummy) {
 		return method;
 	}
 
+	/**
+	 * Retrieve the recorded method that returned a {@code short} value. Part of the
+	 * fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code short} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link java.lang.reflect.Method} corresponding to
+	 *         invoked method.
+	 */
 	public Method getMethod(short dummy) {
 		return method;
 	}
 
+	/**
+	 * While most getMethod*(..) methods just accept a dummy whose value is ignored,
+	 * this method actually accepts a lambda that can execute a method with a return
+	 * value. The lambda is called to execute the method wrapped by it and the
+	 * recorded {@link MethodCall} is returned.
+	 *
+	 * This method is particularly for recording a simple method call (a return
+	 * value but no parameters) since then a method reference can be used as
+	 * argument.
+	 *
+	 * Typical use:
+	 *
+	 * <pre>
+	 * <code>
+	 * assert myMock.getCalls().verifyAndRemoveCall(
+	 *    Invoked.ONCE, myMockRecorder.getMethodCall(
+	 *       myMockRecorder.getProxy()::someMethod));
+	 * </code>
+	 * </pre>
+	 *
+	 * @param callableMethodInvoker The callable that calls the method to be
+	 *                              recorded
+	 * @return A {@link MethodCall} that identifies the called method
+	 */
 	public <S> MethodCall<Method> getMethodCall(Callable<S> callableMethodInvoker) {
 		try {
 			callableMethodInvoker.call();
@@ -296,6 +520,25 @@ public class MethodRecorder<T> {
 		return methodCall;
 	}
 
+	/**
+	 * This method should be used when the method to be recorded is a void method.
+	 * The other signatures cannot be used fluently since they all accept a dummy
+	 * argument.
+	 *
+	 * Typical use:
+	 *
+	 * <pre>
+	 * <code>
+	 * assert myMock.getCalls().verifyAndRemoveCall(
+	 *    Invoked.ONCE, myMockRecorder.getMethodCall(
+	 *       ()->myMockRecorder.getProxy().someVoidMethod()));
+	 * </code>
+	 * </pre>
+	 *
+	 * @param runnableMethodInvoker The runnable that calls the (void) method to be
+	 *                              recorded.
+	 * @return A {@link MethodCall} that identifies the called method
+	 */
 	public MethodCall<Method> getMethodCall(ThrowingRunnable runnableMethodInvoker) {
 		try {
 			runnableMethodInvoker.run();
@@ -307,106 +550,236 @@ public class MethodRecorder<T> {
 	}
 
 	/**
-	 * Retrieve the corresponding {@link MethodCall} after invoking a method.
+	 * Retrieve the corresponding {@link MethodCall} after invoking a method. This
+	 * method is not part of the fluent API.
 	 *
-	 * @return
+	 * @return The recorded {@link MethodCall} corresponding to the method last
+	 *         invoked on this {@link MethodRecorder}.
 	 */
 	public MethodCall<Method> getMethodCall() {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned an {@link Object} reference.
+	 * Part of the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@link Object} reference value
+	 *              returned from the method call to this {@link MethodRecorder}'s
+	 *              {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(Object dummy) {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned a {@code boolean} value. Part
+	 * of the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code boolean} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(boolean dummy) {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned a {@code byte} value. Part of
+	 * the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code byte} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(byte dummy) {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned a {@code char} value. Part of
+	 * the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code char} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(char dummy) {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned a {@code double} value. Part
+	 * of the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code double} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(double dummy) {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned a {@code float} value. Part
+	 * of the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code float} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(float dummy) {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned a {@code int} value. Part of
+	 * the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code int} value returned from the
+	 *              method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(int dummy) {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned a {@code long} value. Part of
+	 * the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code long} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(long dummy) {
 		return methodCall;
 	}
 
+	/**
+	 * Retrieve the recorded method call that returned a {@code short} value. Part
+	 * of the fluent API.
+	 *
+	 * @param dummy Dummy variable to accept the {@code short} value returned from
+	 *              the method call to this {@link MethodRecorder}'s {@link #proxy}.
+	 * @return The recorded {@link MethodCall} corresponding to invoked method.
+	 */
 	public MethodCall<Method> getMethodCall(short dummy) {
 		return methodCall;
 	}
 
 	/**
-	 * Use this method to wrap predicate matchers in a method call.
+	 * Use this method to wrap Matchers in a method call. This method returns an
+	 * identifier value of the corresponding parameter type for internal retrieval
+	 * of the matching argument (here {@link Predicate}).
 	 *
-	 * @param predicate
-	 * @param clazz
-	 * @return
+	 * Example of a typical use with demonstration of the the place where the
+	 * (random) identifier value is returned:
+	 *
+	 * <pre>
+	 * <code>
+	 * MethodRecorder myMethodRecorder = new MethodRecorder<>(MyMethods.class);
+	 * {@code Matcher<Integer>} myMatcher = Matchers.any(int.class); // ! Hamcrest matchers do not implement equals(Object obj)
+	 * int randomIntermediateIdentifier = 0;
+	 * assert myMethodRecorder
+	 *    .getMethodCall(myMethodRecorder.getProxy()
+	 *       .someMethod((randomIntermediateIdentifier = myMethodRecorder
+	 *          .storeAndCreateIdInstanceOfTypeArgument(myMatcher, int.class))))
+	 *    .equals(new {@code MethodCall<>}(MyMethods.class.getMethod("someMethod", int.class), myMatcher));
+	 * </code>
+	 * </pre>
+	 *
+	 * @param predicate The matcher that should be used instead of an exact matching
+	 *                  value as argument to the recorded method.
+	 * @param clazz     The class of the type where the {@code predicate} is
+	 *                  parameterized over (this information otherwise cannot be
+	 *                  retrieved at runtime from the Matcher).
+	 * @return An identifying value of the same type as the {@code predicate} is
+	 *         parameterized over.
 	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz) {
 		return storeAndCreateIdInstanceOfTypeArgument(predicate, clazz, Optional.empty());
 	}
 
 	/**
-	 * Use this method to wrap Matchers in a method call.
+	 * Use this method to wrap Matchers in a method call. This method returns an
+	 * identifier value of the corresponding parameter type for internal retrieval
+	 * of the matching argument (here {@link Matcher}).
 	 *
-	 * Typical use:
+	 * Example of a typical use with demonstration of the the place where the
+	 * (random) identifier value is returned:
 	 *
 	 * <pre>
 	 * <code>
-	 * {@code Matcher<Integer>} matcher = Matchers.any(int.class); // ! Hamcrest matchers do not implement equals(Object obj)
-	 * assert methodRecorder
-	 *    .getMethodCall(methodRecorder.getProxy()
-	 *       .oneParameter((randomIntermediateIdentifier = methodRecorder
-	 *          .storeAndCreateIdInstanceOfTypeArgument(matcher, int.class))))
-	 *    .equals(new {@code MethodCall<>}(Methods.class.getMethod("oneParameter", int.class), matcher));
+	 * MethodRecorder myMethodRecorder = new MethodRecorder<>(MyMethods.class);
+	 * {@code Matcher<Integer>} myMatcher = Matchers.any(int.class); // ! Hamcrest matchers do not implement equals(Object obj)
+	 * int randomIntermediateIdentifier = 0;
+	 * assert myMethodRecorder
+	 *    .getMethodCall(myMethodRecorder.getProxy()
+	 *       .someMethod((randomIntermediateIdentifier = myMethodRecorder
+	 *          .storeAndCreateIdInstanceOfTypeArgument(myMatcher, int.class))))
+	 *    .equals(new {@code MethodCall<>}(MyMethods.class.getMethod("someMethod", int.class), myMatcher));
 	 * </code>
 	 * </pre>
 	 *
-	 * @param matcher
-	 * @param clazz
-	 * @return
+	 * @param matcher The matching argument that should be used instead of an exact
+	 *                matching value as argument to the recorded method.
+	 * @param clazz   The class of the type where the {@code matcher} is
+	 *                parameterized over (this information otherwise cannot be
+	 *                retrieved at runtime from the Matcher).
+	 * @return An identifying value of the same type as the {@code matcher} is
+	 *         parameterized over.
 	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz) {
 		return storeAndCreateIdInstanceOfTypeArgument(matcher, clazz, Optional.empty());
 	}
 
 	/**
-	 * Use this method to prevent ambiguity and ensure the Predicate is linked to
-	 * the correct parameter.
+	 * This method can be used to prevent any ambiguity around the used
+	 * {@link Predicate}(s). Use this method to prevent ambiguity and ensure the
+	 * {@link Predicate} is linked to the correct parameter. For tests of production
+	 * code, it is *strongly* recommended either to use this method OR use only
+	 * (wrapped) matchers in the method call. When using the other signatures, there
+	 * is a small but real chance that otherwise passing tests fail randomly with an
+	 * {@link AmbiguouslyDefinedMatchersException}. Use this method to ensure that
+	 * tests are (R)epeatable (see F.I.R.S.T. Principles of Unit Testing).
 	 *
-	 * @param predicate
-	 * @param clazz
-	 * @param argumentNumber
-	 * @return
+	 * @param predicate      The matching argument that should be used instead of an
+	 *                       exact matching value as argument to the recorded
+	 *                       method.
+	 * @param clazz          The class of the type where the {@code predicate} is
+	 *                       parameterized over (this information otherwise cannot
+	 *                       be retrieved at runtime from the {@code predicate}).
+	 * @param argumentNumber The number of this matching argument in this method
+	 *                       call counted from left to right and starting at 0.
+	 * @return An identifying value of the same type as the {@code predicate} is
+	 *         parameterized over.
 	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz, int argumentNumber) {
 		return storeAndCreateIdInstanceOfTypeArgument(predicate, clazz, Optional.of(argumentNumber));
 	}
 
 	/**
-	 * Use this method to prevent ambiguity and ensure the Matcher is linked to the
-	 * correct parameter.
+	 * This method can be used to prevent any ambiguity around the used
+	 * {@link Matcher}(s). Use this method to prevent ambiguity and ensure the
+	 * {@link Matcher} is linked to the correct parameter. For tests of production
+	 * code, it is *strongly* recommended either to use this method OR use only
+	 * (wrapped) matchers in the method call. When using the other signatures, there
+	 * is a small but real chance that otherwise passing tests fail randomly with an
+	 * {@link AmbiguouslyDefinedMatchersException}. Use this method to ensure that
+	 * tests are (R)epeatable (see F.I.R.S.T. Principles of Unit Testing).
 	 *
-	 * @param matcher
-	 * @param clazz
-	 * @param argumentNumber
-	 * @return
+	 * @param matcher        The matching argument that should be used instead of an
+	 *                       exact matching value as argument to the recorded
+	 *                       method.
+	 * @param clazz          The class of the type where the {@code matcher} is
+	 *                       parameterized over (this information otherwise cannot
+	 *                       be retrieved at runtime from the {@code matcher}).
+	 * @param argumentNumber The number of this matching argument in this method
+	 *                       call counted from left to right and starting at 0.
+	 * @return An identifying value of the same type as the {@code matcher} is
+	 *         parameterized over.
 	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz, int argumentNumber) {
 		return storeAndCreateIdInstanceOfTypeArgument(matcher, clazz, Optional.of(argumentNumber));
@@ -430,14 +803,9 @@ public class MethodRecorder<T> {
 		return identifierValue;
 	}
 
-	static class FatalTestException extends RuntimeException {
-		private static final long serialVersionUID = 1L;
-
-		public FatalTestException(Throwable cause) {
-			super(cause);
-		}
-	}
-
+	/**
+	 * For unit-testing purposes.
+	 */
 	@Override
 	public int hashCode() {
 		final int prime = 31;

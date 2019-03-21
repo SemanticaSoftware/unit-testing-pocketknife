@@ -5,7 +5,8 @@ import java.util.Map;
 
 /**
  * Class that contains the default values for each of the Java primitive and
- * Wrapper types. Also returns null for reference types.
+ * Wrapper types. Also returns null for reference types. These default values
+ * are used as return types for {@link MethodRecorder} proxy method invocations.
  *
  * Adapted from the Mockito package org.mockito.internal.util.Primitives class
  * (https://github.com/mockito/mockito).
