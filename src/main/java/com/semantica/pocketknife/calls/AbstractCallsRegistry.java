@@ -47,9 +47,9 @@ abstract class AbstractCallsRegistry<T> {
 
 	public void registerCall(Object... args) {
 		if (keyClass == String.class) {
-			TestUtils.traceLogMethodCall();
+			TestUtils.traceLogMethodCall(1);
 			@SuppressWarnings("unchecked")
-			T methodName = (T) getMethodName(1);
+			T methodName = (T) TestUtils.getMethodName(1);
 			MethodCall<T> methodCall = new MethodCall<>(methodName, args);
 			addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
 		} else {
@@ -65,18 +65,6 @@ abstract class AbstractCallsRegistry<T> {
 
 	public void registerCall(MethodCall<T> methodCall) {
 		addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
-	}
-
-	/**
-	 * Get the method name for a depth in call stack.
-	 *
-	 * @param depth depth in the call stack (0 means current method, 1 means
-	 *              invoking method, ...)
-	 * @return method name
-	 */
-	private static String getMethodName(final int depth) {
-		final StackTraceElement[] ste = Thread.currentThread().getStackTrace();
-		return ste[2 + depth].getMethodName();
 	}
 
 	private void addStackTraceToCalls(MethodCall<T> methodCall, StackTraceElement[] stackTrace) {
@@ -178,7 +166,7 @@ abstract class AbstractCallsRegistry<T> {
 			StackTraceElement[] stackTrace = stackTraces.get(i).getStackTraceElements();
 			String tracePrefix = (i < stackTraces.size() - 1 ? " |" : "  ");
 			sb.append(" |").append("__[ StackTrace for method call[").append(i)
-					.append("] (" + TestUtils.getCount(stackTraces.get(i).getMethodInvocationSequenceNo() + 1)
+					.append("] (" + TestUtils.getOrdinal(stackTraces.get(i).getMethodInvocationSequenceNo() + 1)
 							+ " invocation on this mock): ]")
 					.append(System.lineSeparator()).append(tracePrefix)
 					.append(Arrays.stream(stackTrace).skip(2)

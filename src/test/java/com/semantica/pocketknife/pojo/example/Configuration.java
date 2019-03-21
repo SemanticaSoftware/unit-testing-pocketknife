@@ -6,6 +6,10 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
+/* TODO: This example pojo structure has been quickly included to test some of the features of the
+ * ReflectionPojoTester. This needs to be replaced in the future by multiple POJOs to test exactly
+ * all different points in the ReflectionPojoTester code.
+ */
 public class Configuration implements Serializable {
 
 	private static final long serialVersionUID = 1L;

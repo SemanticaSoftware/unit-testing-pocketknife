@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class TestValueProvider {
+class TestValueProvider {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(TestValueProvider.class);
 

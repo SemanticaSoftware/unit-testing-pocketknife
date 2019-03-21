@@ -14,10 +14,40 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
+/* TODO: This package was copied from an old project and needs to be checked and refactored to a make it more useful in general.
+ * At this moment, it is now expected that the toString, equals and hashcode methods return the value expected from the respective builders
+ * from the Apache commons lang3 library. Also, the custom getter-and setter pairs logic now needs to be set in the library code itself,
+ * which of course is unacceptable for a library.*/
+
+/**
+ * This class provides a simple automated way to test POJO classes for
+ * corectness. It was written as an exercise in the use of Java Reflection but
+ * also is quite useful for testing the corectness of POJO classes as usually it
+ * is uneconomical to write tests for them.
+ *
+ * This class needs thorough refactoring and should not be used unless its
+ * source is inspected (see TODO).
+ *
+ * @author A. Haanstra
+ *
+ */
 public class ReflectionPojoTester {
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ReflectionPojoTester.class);
 	private static final List<String> IGNORED_FIELD_NAMES = Arrays.asList("serialVersionUID");
 
+	/**
+	 * Starts an automated unit test on a {@;ink List} of POJO classes to see that
+	 * all getters and setters for a POJO are set correctly. Also tests the
+	 * toString(), equals(..) and hashCode() methods.
+	 *
+	 * @param pojoClassesToTest A list with POJO class to test.
+	 * @throws InstantiationException
+	 * @throws IllegalAccessException
+	 * @throws IllegalArgumentException
+	 * @throws InvocationTargetException
+	 * @throws NoSuchFieldException
+	 * @throws SecurityException
+	 */
 	public static void testClassListForGettersSettersAndConstructors(List<Class<?>> pojoClassesToTest)
 			throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException,
 			NoSuchFieldException, SecurityException {
@@ -26,6 +56,19 @@ public class ReflectionPojoTester {
 		}
 	}
 
+	/**
+	 * Starts an automated unit test on a single POJO class to see that all getters
+	 * and setters for a POJO are set correctly. Also tests the toString(),
+	 * equals(..) and hashCode() methods.
+	 *
+	 * @param myClass The POJO class to test.
+	 * @throws InstantiationException
+	 * @throws IllegalAccessException
+	 * @throws IllegalArgumentException
+	 * @throws InvocationTargetException
+	 * @throws NoSuchFieldException
+	 * @throws SecurityException
+	 */
 	public static void reflectionOnFieldsTest(Class<?> myClass) throws InstantiationException, IllegalAccessException,
 			IllegalArgumentException, InvocationTargetException, NoSuchFieldException, SecurityException {
 		List<GetterSetterPair> getterSetterPairs = getDefaultGettersAndSetters(myClass);

@@ -3,7 +3,7 @@ package com.semantica.pocketknife.pojo;
 import java.lang.reflect.Field;
 import java.lang.reflect.Parameter;
 
-public class ReflectionUtils {
+class ReflectionUtils {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ReflectionUtils.class);
 
