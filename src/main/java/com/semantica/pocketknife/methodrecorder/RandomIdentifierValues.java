@@ -1,6 +1,5 @@
 package com.semantica.pocketknife.methodrecorder;
 
-import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -16,7 +15,7 @@ import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
 /**
- * Class that generates Random or "identifier" values that are used by
+ * Class that generates Random or "Identifier" values that are used by
  * {@link MethodRecorder} as an identifier value for matching arguments
  * ({@link Matcher} or {@link Predicate}. The matching argument is captured by
  * {@link MethodRecorder#storeAndCreateIdInstanceOfTypeArgument(Matcher, Class)}
@@ -28,12 +27,22 @@ import net.sf.cglib.proxy.MethodProxy;
  * the matchers are substituted at the positions where the corresponding
  * identifier values are found.
  *
+ * One important exception is that this class does not generate random values
+ * for {@code boolean} and {@link Boolean} types. It just returns {@code false}
+ * by default. This is because there simply is no gained benefit from an
+ * identifier value that would be ambiguous in 50% of cases. It is more useful
+ * to know that a {@link Boolean} matcher is defined ambiguously right away.
+ *
+ * Also, for reference types, not a random value but an identifying value is
+ * generated. A new instance is created that will only equals(..) to another
+ * instance if both are the same instance.
+ *
  * @author A. Haanstra
  *
  */
-class RandomValues {
+class RandomIdentifierValues {
 
-	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RandomValues.class);
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RandomIdentifierValues.class);
 	private static final Random RANDOM = new Random();
 	private static final Objenesis objenesis = new ObjenesisStd();
 	private static final Map<Integer, Class<?>> instancesOf = new HashMap<>();
@@ -74,15 +83,21 @@ class RandomValues {
 		} else if (clazz == Double.class || clazz == double.class) {
 			return (T) (Double) (RANDOM.nextDouble());
 		} else {
+			/*
+			 * We not only create a new subclass only for Abstract classes and Interfaces,
+			 * but also for concrete classes because otherwise two different instances (of
+			 * exactly the requested class, created by Objenesis) returned from this method
+			 * would equals(..). Now, all instances will be of a different subclass
+			 * [enhancer.setUseCache(false)] and will not equals(..) as with the equals(..)
+			 * method intercepted and implemented in the intercept(..) method.
+			 */
 			Class<?> requestedClass = clazz;
-			if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
-				Enhancer enhancer = new Enhancer();
-				enhancer.setUseCache(false);
-				enhancer.setSuperclass(clazz);
-				enhancer.setCallbackType(MethodInterceptor.class);
-				clazz = enhancer.createClass();
-				Enhancer.registerCallbacks(clazz, new Callback[] { (MethodInterceptor) RandomValues::intercept });
-			}
+			Enhancer enhancer = new Enhancer();
+			enhancer.setUseCache(false);
+			enhancer.setSuperclass(clazz);
+			enhancer.setCallbackType(MethodInterceptor.class);
+			clazz = enhancer.createClass();
+			Enhancer.registerCallbacks(clazz, new Callback[] { (MethodInterceptor) RandomIdentifierValues::intercept });
 			T newInstance = objenesis.newInstance(clazz);
 			instancesOf.put(System.identityHashCode(newInstance), requestedClass);
 			return newInstance;

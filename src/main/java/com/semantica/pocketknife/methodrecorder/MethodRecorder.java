@@ -787,7 +787,7 @@ public class MethodRecorder<T> {
 
 	private <S> S storeAndCreateIdInstanceOfTypeArgument(Object matcher, Class<S> clazz,
 			Optional<Integer> argumentNumber) {
-		S identifierValue = RandomValues.identifierValue(clazz);
+		S identifierValue = RandomIdentifierValues.identifierValue(clazz);
 		Class<?> identifierClass = identifierValue.getClass();
 		Map<Object, Queue<MatchingArgument>> matchersForClass = matchers.get(identifierClass);
 		if (matchersForClass == null) {
