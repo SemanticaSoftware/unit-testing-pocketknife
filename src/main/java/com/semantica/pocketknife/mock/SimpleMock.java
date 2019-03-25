@@ -11,6 +11,7 @@ import java.util.Map;
 
 import com.semantica.pocketknife.calls.Calls;
 import com.semantica.pocketknife.calls.MethodCall;
+import com.semantica.pocketknife.methodrecorder.MethodRecorder;
 
 /**
  * Minimalistic dynamic mock creator class.
@@ -25,34 +26,30 @@ import com.semantica.pocketknife.calls.MethodCall;
 public class SimpleMock {
 
 	// mocked class -> intercepted method - > return value
-	final Map<Class<?>, Map<MethodCall<Method>, Object>> allInterceptions = new HashMap<>();
-	final Map<Class<?>, Calls<Method>> allCalls = new HashMap<>();
+	private final Map<Class<?>, Map<MethodCall<Method>, Object>> allInterceptions = new HashMap<>();
+	private final Map<Class<?>, Calls<Method>> allCalls = new HashMap<>();
+	private final Map<Object, MethodRecorder<?>> methodRecorders = new HashMap<>();
+	private MockBehaviourBuilder<?> initialBehaviourBuilder;
 
 	/** Delegation of Interfaces mapping to implementation objects */
-	final Map<Class<?>, Object> delegation = new HashMap<Class<?>, Object>();
+	private final Map<Class<?>, Object> delegation = new HashMap<Class<?>, Object>();
 
-	public InvocationHandler handler = new CallHandler();
+	private InvocationHandler handler = new CallHandler();
 
 	@SuppressWarnings("unchecked")
 	public <S> S mock(Class<S> clazz, Calls<Method> calls) {
 		allCalls.put(clazz, calls);
-		return (S) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { clazz }, handler);
+		S proxy = (S) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { clazz }, handler);
+		methodRecorders.put(proxy, MethodRecorder.recordInvocationsOn(clazz));
+		return proxy;
 	}
 
-	public <S> SimpleMock interceptWith(S returnValue, Method method, Object... args) {
-		MethodCall<Method> methodCall = new MethodCall<>(method, args);
-		return intercept(methodCall, returnValue);
+	public <S> MockBehaviourBuilder<S> whenIntercepted(S dummy) {
+		return initialBehaviourBuilder.typeParameterize();
 	}
 
-	public <S> SimpleMock intercept(MethodCall<Method> methodCall, S value) {
-		Class<?> declaringClass = methodCall.getMethod().getDeclaringClass();
-		Map<MethodCall<Method>, Object> interceptions = allInterceptions.get(declaringClass);
-		if (interceptions == null) {
-			interceptions = new HashMap<>();
-			allInterceptions.put(declaringClass, interceptions);
-		}
-		interceptions.put(methodCall, value);
-		return this;
+	public <S> AlternativeMockBehaviourBuilder<S> doReturn(S returnValue) {
+		return new AlternativeMockBehaviourBuilder<>(returnValue);
 	}
 
 	public <S> SimpleMock delegate(Class<S> clazz, S value) {
@@ -60,15 +57,88 @@ public class SimpleMock {
 		return this;
 	}
 
+	@SuppressWarnings("unchecked")
+	public <S> MethodRecorder<S> recorder(S mock) {
+		return (MethodRecorder<S>) methodRecorders.get(mock);
+	}
+
+	public class MockBehaviourBuilder<U> {
+
+		private Object proxy;
+		private MethodCall<Method> methodCall;
+
+		public MockBehaviourBuilder(Object proxy, MethodCall<Method> methodCall) {
+			this.proxy = proxy;
+			this.methodCall = methodCall;
+		}
+
+		public void thenReturn(U returnValue) {
+			Class<?> declaringClass = methodCall.getMethod().getDeclaringClass();
+			Map<MethodCall<Method>, Object> interceptions = SimpleMock.this.allInterceptions.get(declaringClass);
+			if (interceptions == null) {
+				interceptions = new HashMap<>();
+				SimpleMock.this.allInterceptions.put(declaringClass, interceptions);
+			}
+			interceptions.put(methodCall, returnValue);
+		}
+
+		public <V> MockBehaviourBuilder<V> typeParameterize() {
+			return new MockBehaviourBuilder<>(proxy, methodCall);
+		}
+
+		public Object getProxy() {
+			return proxy;
+		}
+
+		public MethodCall<Method> getMethodCall() {
+			return methodCall;
+		}
+	}
+
+	public class AlternativeMockBehaviourBuilder<U> {
+		private Object returnValue;
+
+		public AlternativeMockBehaviourBuilder(Object returnValue) {
+			super();
+			this.returnValue = returnValue;
+		}
+
+		public void whenIntercepted(U dummy) {
+			MethodCall<Method> methodCall = SimpleMock.this.initialBehaviourBuilder.getMethodCall();
+			Class<?> declaringClass = methodCall.getMethod().getDeclaringClass();
+			Map<MethodCall<Method>, Object> interceptions = SimpleMock.this.allInterceptions.get(declaringClass);
+			if (interceptions == null) {
+				interceptions = new HashMap<>();
+				allInterceptions.put(declaringClass, interceptions);
+			}
+			interceptions.put(methodCall, AlternativeMockBehaviourBuilder.this.returnValue);
+		}
+
+	}
+
 	private class CallHandler implements InvocationHandler {
+		// TODO: Ensure that call is not registered when setting up mock (seperating
+		// phases?). Easier way to verify mock invocations.
 
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			if (args == null) {
 				args = new Object[0];
 			}
+
+			if (method.getName().equals("hashCode") && args.length == 0) {
+				return System.identityHashCode(proxy);
+			}
+
 			Class<?> declaringClass = method.getDeclaringClass();
 			MethodCall<Method> methodCall = new MethodCall<>(method, args);
+
+			// prepare setting up mock behaviour
+			initialBehaviourBuilder = new MockBehaviourBuilder<>(proxy, methodCall);
+			// Invoke method also on methodRecorder proxy in case we are setting up
+			// behaviour
+			MethodRecorder<?> methodRecorder = methodRecorders.get(proxy);
+			method.invoke(methodRecorder.getProxy(), args);
 
 			// Register calls first
 			Calls<Method> calls = allCalls.get(declaringClass);

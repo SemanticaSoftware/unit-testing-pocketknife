@@ -40,19 +40,21 @@ public class SimpleMockTest {
 
 		// Create a mock, for now all methods return null
 		DefaultCalls<Method> carCalls = CallsFactory.getDefaultCalls();
-		MethodRecorder<Car> carMethodRecorder = MethodRecorder.recordInvocationsOn(Car.class);
+
 		Car carMock = mocker.mock(Car.class, carCalls);
 
 		// Intercept method .drive() and make it return 'proxy roll!'
-		MethodCall<Method> drive = carMethodRecorder.getMethodCall(carMethodRecorder.getProxy().drive(METERS));
-		mocker.intercept(drive, mockedResult);
+
+		mocker.doReturn(mockedResult).whenIntercepted(carMock.drive(METERS));
 
 		// Confirm the result of method drive
-		Assertions.assertTrue(mockedResult.equals(carMock.drive(METERS)));
+		Assertions.assertEquals(mockedResult, carMock.drive(METERS));
 
 		// Method park returns null because it was not intercepted or delegated.
 		Assertions.assertNull(carMock.park());
 
+		MethodRecorder<Car> methodRecorder = mocker.recorder(carMock);
+		MethodCall<Method> drive = mocker.recorder(carMock).getMethodCall(methodRecorder.getProxy().drive(METERS));
 		carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
 		carCalls.verifyNoMoreMethodInvocations();
 
@@ -60,10 +62,52 @@ public class SimpleMockTest {
 		mocker.delegate(Car.class, car);
 
 		// Now park() returns 'stalled.' because it was delegated to car.park()
-		Assertions.assertTrue("stalled.".equals(carMock.park()));
+		Assertions.assertEquals("stalled.", carMock.park());
 
 		// The interception prevails over delegation
-		Assertions.assertTrue(mockedResult.equals(carMock.drive(METERS)));
+		Assertions.assertEquals(mockedResult, carMock.drive(METERS));
 
+	}
+
+	@Test
+	public void test2() {
+		mocker = new SimpleMock();
+
+		Car car = new Car() {
+			@Override
+			public String drive(int meters) {
+				return String.format("rolling %dm...", meters);
+			}
+
+			@Override
+			public String park() {
+				return "stalled.";
+			}
+		};
+
+		// Original
+		Assertions.assertEquals(String.format("rolling %dm...", METERS), car.drive(METERS));
+		Assertions.assertNotNull(car.park());
+
+		// Create a mock, for now all methods return null
+		DefaultCalls<Method> carCalls = CallsFactory.getDefaultCalls();
+
+		Car carMock = mocker.mock(Car.class, carCalls);
+
+		// Intercept method .drive() and make it return 'proxy roll!'
+
+		mocker.whenIntercepted(carMock.drive(METERS)).thenReturn(mockedResult);
+
+		// Confirm the result of method drive
+		Assertions.assertEquals(mockedResult, carMock.drive(METERS)); // TODO: fix: test succeeds whether or not this
+																		// line is commented out
+
+		// Method park returns null because it was not intercepted or delegated.
+		Assertions.assertNull(carMock.park());
+
+		MethodRecorder<Car> methodRecorder = mocker.recorder(carMock);
+		MethodCall<Method> drive = mocker.recorder(carMock).getMethodCall(methodRecorder.getProxy().drive(METERS));
+		carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
+		carCalls.verifyNoMoreMethodInvocations();
 	}
 }
