@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -46,6 +47,7 @@ abstract class AbstractCallsRegistry<T> {
 	}
 
 	public void registerCall(Object... args) {
+		requireNonNull(args);
 		if (keyClass == String.class) {
 			TestUtils.traceLogMethodCall(1);
 			@SuppressWarnings("unchecked")
@@ -59,12 +61,19 @@ abstract class AbstractCallsRegistry<T> {
 	}
 
 	public void registerCall(T method, Object... args) {
+		requireNonNull(args);
 		MethodCall<T> methodCall = new MethodCall<>(method, args);
 		addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
 	}
 
 	public void registerCall(MethodCall<T> methodCall) {
+		requireNonNull(methodCall.getArgs());
 		addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
+	}
+
+	private void requireNonNull(Object[] args) {
+		Objects.requireNonNull(args,
+				"When a call is invoked without arguments, please use a zero-length args array (new Object[0]) instead of null.");
 	}
 
 	private void addStackTraceToCalls(MethodCall<T> methodCall, StackTraceElement[] stackTrace) {

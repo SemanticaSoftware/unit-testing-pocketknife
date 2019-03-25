@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.semantica.pocketknife.calls.Calls;
+import com.semantica.pocketknife.calls.MethodCall;
 
 /**
  * Minimalistic dynamic mock creator class.
@@ -24,11 +25,8 @@ import com.semantica.pocketknife.calls.Calls;
 public class SimpleMock {
 
 	// mocked class -> intercepted method - > return value
-	final Map<Class<?>, Map<Method, Object>> allInterceptions = new HashMap<>();
+	final Map<Class<?>, Map<MethodCall<Method>, Object>> allInterceptions = new HashMap<>();
 	final Map<Class<?>, Calls<Method>> allCalls = new HashMap<>();
-
-	/** Intercept a method to return any value */
-	final Map<String, Object> interceptions = new HashMap<String, Object>();
 
 	/** Delegation of Interfaces mapping to implementation objects */
 	final Map<Class<?>, Object> delegation = new HashMap<Class<?>, Object>();
@@ -36,23 +34,28 @@ public class SimpleMock {
 	public InvocationHandler handler = new CallHandler();
 
 	@SuppressWarnings("unchecked")
-	public <T> T mock(Class<T> clazz, Calls<Method> calls) {
+	public <S> S mock(Class<S> clazz, Calls<Method> calls) {
 		allCalls.put(clazz, calls);
-		return (T) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { clazz }, handler);
+		return (S) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { clazz }, handler);
 	}
 
-	public <T> SimpleMock intercept(Method method, T value) {
-		Class<?> declaringClass = method.getDeclaringClass();
-		Map<Method, Object> interceptions = allInterceptions.get(declaringClass);
+	public <S> SimpleMock interceptWith(S returnValue, Method method, Object... args) {
+		MethodCall<Method> methodCall = new MethodCall<>(method, args);
+		return intercept(methodCall, returnValue);
+	}
+
+	public <S> SimpleMock intercept(MethodCall<Method> methodCall, S value) {
+		Class<?> declaringClass = methodCall.getMethod().getDeclaringClass();
+		Map<MethodCall<Method>, Object> interceptions = allInterceptions.get(declaringClass);
 		if (interceptions == null) {
 			interceptions = new HashMap<>();
 			allInterceptions.put(declaringClass, interceptions);
 		}
-		interceptions.put(method, value);
+		interceptions.put(methodCall, value);
 		return this;
 	}
 
-	public <T> SimpleMock delegate(Class<T> clazz, T value) {
+	public <S> SimpleMock delegate(Class<S> clazz, S value) {
 		delegation.put(clazz, value);
 		return this;
 	}
@@ -65,16 +68,17 @@ public class SimpleMock {
 				args = new Object[0];
 			}
 			Class<?> declaringClass = method.getDeclaringClass();
+			MethodCall<Method> methodCall = new MethodCall<>(method, args);
 
 			// Register calls first
 			Calls<Method> calls = allCalls.get(declaringClass);
 			calls.registerCall(method, args);
 
 			// Then try interceptions
-			Map<Method, Object> interceptions = allInterceptions.get(declaringClass);
+			Map<MethodCall<Method>, Object> interceptions = allInterceptions.get(declaringClass);
 			if (interceptions != null) {
-				if (interceptions.containsKey(method)) {
-					Object returnValue = interceptions.get(method);
+				if (interceptions.containsKey(methodCall)) {
+					Object returnValue = interceptions.get(methodCall);
 					return returnValue;
 				}
 			}

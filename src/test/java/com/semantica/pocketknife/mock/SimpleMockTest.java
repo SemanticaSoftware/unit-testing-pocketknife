@@ -8,12 +8,15 @@ import org.junit.jupiter.api.Test;
 import com.semantica.pocketknife.calls.CallsFactory;
 import com.semantica.pocketknife.calls.DefaultCalls;
 import com.semantica.pocketknife.calls.Invoked;
+import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.methodrecorder.MethodRecorder;
 
 public class SimpleMockTest {
 
 	SimpleMock mocker;
-	static String mockedResult = "proxy roll!";
+
+	static final int METERS = 42;
+	static String mockedResult = String.format("proxy rolling %dm!", METERS);
 
 	@Test
 	public void test() {
@@ -21,8 +24,8 @@ public class SimpleMockTest {
 
 		Car car = new Car() {
 			@Override
-			public String drive() {
-				return "rolling...";
+			public String drive(int meters) {
+				return String.format("rolling %dm...", meters);
 			}
 
 			@Override
@@ -32,7 +35,7 @@ public class SimpleMockTest {
 		};
 
 		// Original
-		Assertions.assertTrue("rolling...".equals(car.drive()));
+		Assertions.assertEquals(String.format("rolling %dm...", METERS), car.drive(METERS));
 		Assertions.assertNotNull(car.park());
 
 		// Create a mock, for now all methods return null
@@ -41,11 +44,11 @@ public class SimpleMockTest {
 		Car carMock = mocker.mock(Car.class, carCalls);
 
 		// Intercept method .drive() and make it return 'proxy roll!'
-		Method drive = carMethodRecorder.getMethod(carMethodRecorder.getProxy().drive());
+		MethodCall<Method> drive = carMethodRecorder.getMethodCall(carMethodRecorder.getProxy().drive(METERS));
 		mocker.intercept(drive, mockedResult);
 
 		// Confirm the result of method drive
-		Assertions.assertTrue(mockedResult.equals(carMock.drive()));
+		Assertions.assertTrue(mockedResult.equals(carMock.drive(METERS)));
 
 		// Method park returns null because it was not intercepted or delegated.
 		Assertions.assertNull(carMock.park());
@@ -60,7 +63,7 @@ public class SimpleMockTest {
 		Assertions.assertTrue("stalled.".equals(carMock.park()));
 
 		// The interception prevails over delegation
-		Assertions.assertTrue(mockedResult.equals(carMock.drive()));
+		Assertions.assertTrue(mockedResult.equals(carMock.drive(METERS)));
 
 	}
 }

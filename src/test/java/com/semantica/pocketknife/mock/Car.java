@@ -1,7 +1,7 @@
 package com.semantica.pocketknife.mock;
 
-
 public interface Car {
-    public String drive();
-    public String park();
+	public String drive(int meters);
+
+	public String park();
 }
