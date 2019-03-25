@@ -1,21 +1,30 @@
-package com.semantica.pocketknife;
+package com.semantica.pocketknife.calls;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
-public class MethodCall {
+/**
+ * Data class representing a method call. Next to the method signature
+ * (represented by the method field when T is {@link java.lang.reflect.Method}),
+ * it also stores the actual arguments a method was called with.
+ *
+ * @author A. Haanstra
+ *
+ * @param <T>
+ */
+public class MethodCall<T> {
 
-	private final Object method;
+	private final T method;
 	private final Object[] args;
 
-	public MethodCall(Object method, Object[] args) {
+	public MethodCall(T method, Object... args) {
 		super();
 		this.method = method;
 		this.args = args;
 	}
 
-	public Object getMethod() {
+	public T getMethod() {
 		return method;
 	}
 

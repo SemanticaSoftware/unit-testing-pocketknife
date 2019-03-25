@@ -1,6 +1,14 @@
-package com.semantica.pocketknife;
+package com.semantica.pocketknife.calls;
 
-public class MethodCallInformation {
+/**
+ * Data class storing the unqiue information for a method call. Stores the
+ * caller information (stack trace) and sequential invocation number for this
+ * mock.
+ *
+ * @author A. Haanstra
+ *
+ */
+class MethodCallInformation {
 
 	private StackTraceElement[] stackTraceElements;
 	private int methodInvocationSequenceNo;
