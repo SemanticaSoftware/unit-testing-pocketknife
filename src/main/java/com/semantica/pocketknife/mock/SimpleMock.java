@@ -12,6 +12,7 @@ import java.util.Map;
 import com.semantica.pocketknife.calls.Calls;
 import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.methodrecorder.MethodRecorder;
+import com.semantica.pocketknife.util.Tuple;
 
 /**
  * Minimalistic dynamic mock creator class.
@@ -32,7 +33,7 @@ public class SimpleMock {
 	private MockBehaviourBuilder<?> initialBehaviourBuilder;
 
 	/** Delegation of Interfaces mapping to implementation objects */
-	private final Map<Class<?>, Object> delegation = new HashMap<Class<?>, Object>();
+	private final Map<Tuple<Class<?>, ?>, Object> delegation = new HashMap<>();
 
 	private InvocationHandler handler = new CallHandler();
 
@@ -45,15 +46,23 @@ public class SimpleMock {
 	}
 
 	public <S> MockBehaviourBuilder<S> whenIntercepted(S dummy) {
+		undoCallRegistrationDuringStubbing();
 		return initialBehaviourBuilder.typeParameterize();
+	}
+
+	private void undoCallRegistrationDuringStubbing() {
+		Class<?> declaringClass = initialBehaviourBuilder.getMethodCall().getMethod().getDeclaringClass();
+		Calls<Method> calls = allCalls.get(declaringClass);
+		calls.removeCall(initialBehaviourBuilder.getMethodCall());
 	}
 
 	public <S> AlternativeMockBehaviourBuilder<S> doReturn(S returnValue) {
 		return new AlternativeMockBehaviourBuilder<>(returnValue);
 	}
 
-	public <S> SimpleMock delegate(Class<S> clazz, S value) {
-		delegation.put(clazz, value);
+	public <S> SimpleMock delegate(Class<S> clazz, S mock, S delegate) {
+		Tuple<Class<?>, ?> key = new Tuple<>(clazz, mock);
+		delegation.put(key, delegate);
 		return this;
 	}
 
@@ -104,6 +113,7 @@ public class SimpleMock {
 		}
 
 		public void whenIntercepted(U dummy) {
+			undoCallRegistrationDuringStubbing();
 			MethodCall<Method> methodCall = SimpleMock.this.initialBehaviourBuilder.getMethodCall();
 			Class<?> declaringClass = methodCall.getMethod().getDeclaringClass();
 			Map<MethodCall<Method>, Object> interceptions = SimpleMock.this.allInterceptions.get(declaringClass);
@@ -154,11 +164,13 @@ public class SimpleMock {
 			}
 
 			// Now try delegations
-			for (Class<?> delegatedClass : delegation.keySet()) {
-				List<Method> methodsInDelegatedClass = Arrays.asList(delegatedClass.getMethods());
-				if (declaringClass.isAssignableFrom(delegatedClass) && methodsInDelegatedClass.contains(method)) {
+			for (Tuple<Class<?>, ?> key : delegation.keySet()) {
+				Class<?> clazz = key.getS();
+				List<Method> methodsInDelegatedClass = Arrays.asList(clazz.getMethods());
+				if (declaringClass.isAssignableFrom(clazz) && proxy == key.getT()
+						&& methodsInDelegatedClass.contains(method)) {
 					try {
-						return method.invoke(delegation.get(delegatedClass), args);
+						return method.invoke(delegation.get(key), args);
 					} catch (InvocationTargetException e) {
 						throw e.getTargetException();
 					}

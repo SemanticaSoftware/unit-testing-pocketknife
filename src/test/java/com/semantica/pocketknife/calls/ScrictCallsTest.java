@@ -48,6 +48,28 @@ public class ScrictCallsTest {
 	}
 
 	@Test
+	public void shouldVerifyAndRemoveSecondCallAsFirstCallAfterRemovingFirstCall()
+			throws NoSuchMethodException, SecurityException {
+		StrictCalls<Method> strictCalls = CallsFactory.getStrictCalls();
+		Method testMethodA = this.getClass().getMethod("testMethodA", Object.class);
+		Method testMethodB = this.getClass().getMethod("testMethodB", Object.class);
+		Object[] args = { new Object() };
+		MethodCall<Method> methodCallA = new MethodCall<Method>(testMethodA, args);
+		MethodCall<Method> methodCallB = new MethodCall<Method>(testMethodB, args);
+
+		strictCalls.registerCall(methodCallA);
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
+		strictCalls.removeCall(methodCallA);
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == true;
+		strictCalls.registerCall(methodCallB);
+		assert strictCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
+
+		assert strictCalls.verifyAndRemoveCall(methodCallA) == false;
+		assert strictCalls.verifyAndRemoveCall(methodCallB);
+		assert strictCalls.verifyNoMoreMethodInvocations();
+	}
+
+	@Test
 	public void shouldNotVerifyAndRemoveCallsInOrderDifferentFromRegistrationIeInvocation()
 			throws NoSuchMethodException, SecurityException {
 		StrictCalls<Method> strictCalls = CallsFactory.getStrictCalls();

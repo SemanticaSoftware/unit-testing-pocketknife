@@ -24,7 +24,7 @@ import com.semantica.pocketknife.util.TestUtils;
  *
  * @param <T>
  */
-abstract class AbstractCallsRegistry<T> {
+abstract class AbstractCallsRegistry<T> implements Calls<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(Calls.class);
 	protected final Class<T> keyClass;
@@ -189,6 +189,11 @@ abstract class AbstractCallsRegistry<T> {
 	public void reset() {
 		calls.clear();
 		sequentialCallNo = 0;
+	}
+
+	public void removeCall(MethodCall<T> methodCall) {
+		calls.remove(methodCall);
+		sequentialCallNo--;
 	}
 
 }

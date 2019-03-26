@@ -103,4 +103,14 @@ public interface Calls<T> {
 	 */
 	public void reset();
 
+	/**
+	 * Removes a registered method call from the method calls store without any
+	 * verification. This instance will return to the same state as before given
+	 * call was registered. This method should only be used internally in this
+	 * library.
+	 *
+	 * @param methodCall The method call to remove
+	 */
+	public void removeCall(MethodCall<T> methodCall);
+
 }

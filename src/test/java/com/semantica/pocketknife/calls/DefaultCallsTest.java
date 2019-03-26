@@ -32,6 +32,21 @@ public class DefaultCallsTest {
 	}
 
 	@Test
+	public void shouldNotVerifyCallWhenRemoved() throws NoSuchMethodException, SecurityException {
+		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
+		Method testMethod = this.getClass().getMethod("testMethod", Object.class);
+		Object[] args = { new Object() };
+		MethodCall<Method> methodCall = new MethodCall<Method>(testMethod, args);
+
+		defaultCalls.registerCall(methodCall);
+		assert defaultCalls.verifyNoMoreMethodInvocations(NO_STACK_TRACE) == false;
+		defaultCalls.removeCall(methodCall);
+
+		assert defaultCalls.verifyCall(Invoked.NEVER, methodCall);
+		assert defaultCalls.verifyNoMoreMethodInvocations();
+	}
+
+	@Test
 	public void shouldVerifyAndRemoveCalledTwice() throws NoSuchMethodException, SecurityException {
 		DefaultCalls<Method> defaultCalls = CallsFactory.getDefaultCalls();
 		Method testMethod = this.getClass().getMethod("testMethod", Object.class);

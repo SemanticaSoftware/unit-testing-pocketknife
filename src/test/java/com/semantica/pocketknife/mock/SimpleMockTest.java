@@ -50,16 +50,16 @@ public class SimpleMockTest {
 		// Confirm the result of method drive
 		Assertions.assertEquals(mockedResult, carMock.drive(METERS));
 
+		MethodRecorder<Car> methodRecorder = mocker.recorder(carMock);
+		MethodCall<Method> drive = mocker.recorder(carMock).getMethodCall(methodRecorder.getProxy().drive(METERS));
+		assert carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
+		assert carCalls.verifyNoMoreMethodInvocations();
+
 		// Method park returns null because it was not intercepted or delegated.
 		Assertions.assertNull(carMock.park());
 
-		MethodRecorder<Car> methodRecorder = mocker.recorder(carMock);
-		MethodCall<Method> drive = mocker.recorder(carMock).getMethodCall(methodRecorder.getProxy().drive(METERS));
-		carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
-		carCalls.verifyNoMoreMethodInvocations();
-
 		// Delegate method calls to the object car
-		mocker.delegate(Car.class, car);
+		mocker.delegate(Car.class, carMock, car);
 
 		// Now park() returns 'stalled.' because it was delegated to car.park()
 		Assertions.assertEquals("stalled.", carMock.park());
@@ -99,15 +99,15 @@ public class SimpleMockTest {
 		mocker.whenIntercepted(carMock.drive(METERS)).thenReturn(mockedResult);
 
 		// Confirm the result of method drive
-		Assertions.assertEquals(mockedResult, carMock.drive(METERS)); // TODO: fix: test succeeds whether or not this
-																		// line is commented out
+		Assertions.assertEquals(mockedResult, carMock.drive(METERS));
+
+		MethodRecorder<Car> methodRecorder = mocker.recorder(carMock);
+		MethodCall<Method> drive = mocker.recorder(carMock).getMethodCall(methodRecorder.getProxy().drive(METERS));
+		assert carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
+		assert carCalls.verifyNoMoreMethodInvocations();
 
 		// Method park returns null because it was not intercepted or delegated.
 		Assertions.assertNull(carMock.park());
 
-		MethodRecorder<Car> methodRecorder = mocker.recorder(carMock);
-		MethodCall<Method> drive = mocker.recorder(carMock).getMethodCall(methodRecorder.getProxy().drive(METERS));
-		carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
-		carCalls.verifyNoMoreMethodInvocations();
 	}
 }
