@@ -15,7 +15,7 @@ import java.util.Map;
  *
  */
 @SuppressWarnings("unchecked")
-class DefaultValues {
+public class DefaultValues {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DefaultValues.class);
 	private static final Map<Class<?>, Object> PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES = new HashMap<Class<?>, Object>();
@@ -48,7 +48,7 @@ class DefaultValues {
 	 * @return The default value for the {@code primitiveOrWrapperType}, null
 	 *         otherwise.
 	 */
-	static <T> T defaultValue(Class<T> primitiveOrWrapperType) {
+	public static <T> T defaultValue(Class<T> primitiveOrWrapperType) {
 		return (T) PRIMITIVE_OR_WRAPPER_DEFAULT_VALUES.get(primitiveOrWrapperType);
 
 	}
