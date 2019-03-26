@@ -12,8 +12,6 @@ import com.semantica.pocketknife.calls.Calls;
 import com.semantica.pocketknife.calls.CallsFactory;
 import com.semantica.pocketknife.calls.DefaultCalls;
 import com.semantica.pocketknife.calls.Invoked;
-import com.semantica.pocketknife.calls.MethodCall;
-import com.semantica.pocketknife.methodrecorder.MethodRecorder;
 
 public class InlineMockerTest {
 
@@ -60,8 +58,6 @@ public class InlineMockerTest {
 		// Confirm the result of method drive
 		Assertions.assertEquals(DRIVE_RETURN_VALUE, carMock.drive(METERS));
 
-		MethodRecorder<Car> methodRecorder = mocker.recorder(carMock);
-		MethodCall<Method> drive = mocker.recorder(carMock).getMethodCall(methodRecorder.getProxy().drive(METERS));
 		mocker.assertCalled(Invoked.ONCE, carMock).drive(METERS);
 		mocker.assertNoMoreMethodInvocations(carMock);
 //		assert carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
@@ -101,10 +97,8 @@ public class InlineMockerTest {
 		// Confirm the result of method drive
 		Assertions.assertEquals(DRIVE_RETURN_VALUE, carMock.drive(METERS));
 
-		MethodRecorder<Car> methodRecorder = mocker.recorder(carMock);
-		MethodCall<Method> drive = mocker.recorder(carMock).getMethodCall(methodRecorder.getProxy().drive(METERS));
-		assert carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
-		assert carCalls.verifyNoMoreMethodInvocations();
+		mocker.assertCalled(Invoked.ONCE, carMock).drive(METERS);
+		mocker.assertNoMoreMethodInvocations(carMock);
 
 		// Method park returns null because it was not intercepted or delegated.
 		Assertions.assertNull(carMock.park());
