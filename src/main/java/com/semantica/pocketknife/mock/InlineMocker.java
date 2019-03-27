@@ -6,6 +6,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.commons.lang3.NotImplementedException;
 
@@ -15,6 +16,7 @@ import com.semantica.pocketknife.calls.Invoked;
 import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.calls.StrictCalls;
 import com.semantica.pocketknife.methodrecorder.DefaultValues;
+import com.semantica.pocketknife.methodrecorder.MethodRecorder;
 import com.semantica.pocketknife.util.Tuple;
 
 /**
@@ -34,22 +36,26 @@ public class InlineMocker<T extends Calls<Method>> {
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(InlineMocker.class);
 
 	private final Class<T> callsClass;
-	// proxy --> ...
+	// key: the proxy (mock) instance
 	private final Map<Object, Map<MethodCall<Method>, Object>> allInterceptions = new HashMap<>();
+	private final Map<Object, MethodRecorder<?>> methodRecorders = new HashMap<>();
 	private final Map<Object, T> allCalls = new HashMap<>();
-	private MockBehaviourBuilder<?> initialBehaviourBuilder;
-
-	/** Delegation of Interfaces mapping to implementation objects */
+	// key: tuple of class of delegated interface and mock instance
 	private final Map<Tuple<Class<?>, ?>, Object> delegates = new HashMap<>();
 
-	private PreparedProxyState preparedProxyState = PreparedProxyState.Execution;
-	private Object returnValue;
-	private Invoked timesInvoked = null;
+	private Stubber<?> stubber;
+	private AlternativeStubber<?> alternativeStubber;
+	private VerificationState verificationState = new VerificationState();
+	private PreparedProxyState preparedProxyState = PreparedProxyState.MOCKING_ON_INTERCEPT;
 
 	private InvocationHandler handler = new CallHandler();
 
 	private enum PreparedProxyState {
-		Stubbing, Verification, Execution;
+		STUBBING_ON_INTERCEPT, VERIFICATION_ON_INTERCEPT, MOCKING_ON_INTERCEPT;
+	}
+
+	public static class VerificationState {
+		Invoked timesInvoked = null;
 	}
 
 	public InlineMocker(Class<T> callsClass) {
@@ -59,23 +65,26 @@ public class InlineMocker<T extends Calls<Method>> {
 	@SuppressWarnings("unchecked")
 	public <S> S mock(Class<S> clazz, T calls) {
 		S proxy = (S) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { clazz }, handler);
+		methodRecorders.put(proxy, MethodRecorder.recordInvocationsOn(clazz));
 		allCalls.put(proxy, calls);
 		return proxy;
 	}
 
-	public <S> MockBehaviourBuilder<S> whenIntercepted(S dummy) {
+	public <S> Stubber<S> whenIntercepted(S dummy) {
 		undoCallRegistrationDuringUnpreparedStubbing();
-		return initialBehaviourBuilder.typeParameterize();
+		return stubber.typeParameterize();
 	}
 
 	private void undoCallRegistrationDuringUnpreparedStubbing() {
-		Calls<Method> calls = allCalls.get(initialBehaviourBuilder.getProxy());
-		calls.removeCall(initialBehaviourBuilder.getMethodCall());
+		Calls<Method> calls = allCalls.get(stubber.getProxy());
+		calls.removeCall(stubber.getMethodCall());
 	}
 
-	public <S> AlternativeMockBehaviourBuilder<S> doReturn(S returnValue) {
-		this.returnValue = returnValue;
-		return new AlternativeMockBehaviourBuilder<>(returnValue);
+	public <S> AlternativeStubber<S> doReturn(S returnValue) {
+		this.preparedProxyState = PreparedProxyState.STUBBING_ON_INTERCEPT;
+		AlternativeStubber<S> alternativeStubber = new AlternativeStubber<>(returnValue);
+		this.alternativeStubber = alternativeStubber;
+		return alternativeStubber;
 	}
 
 	public <S> void delegate(Class<S> interfaze, S mock, S delegate) {
@@ -90,8 +99,8 @@ public class InlineMocker<T extends Calls<Method>> {
 
 	public <S> S assertCalled(Invoked timesInvoked, S mock) {
 		if (callsClass != StrictCalls.class) {
-			this.timesInvoked = timesInvoked;
-			InlineMocker.this.preparedProxyState = PreparedProxyState.Verification;
+			this.verificationState.timesInvoked = timesInvoked;
+			InlineMocker.this.preparedProxyState = PreparedProxyState.VERIFICATION_ON_INTERCEPT;
 			return mock;
 		} else {
 			throw new NotImplementedException(
@@ -101,7 +110,7 @@ public class InlineMocker<T extends Calls<Method>> {
 
 	public <S> S assertCalled(S mock) {
 		if (callsClass == StrictCalls.class) {
-			InlineMocker.this.preparedProxyState = PreparedProxyState.Verification;
+			InlineMocker.this.preparedProxyState = PreparedProxyState.VERIFICATION_ON_INTERCEPT;
 			return mock;
 		} else {
 			throw new NotImplementedException(
@@ -115,62 +124,59 @@ public class InlineMocker<T extends Calls<Method>> {
 		}
 	}
 
-	public class MockBehaviourBuilder<U> {
+	private void addInterception(Object proxy, MethodCall<Method> methodCall, Object returnValue) {
+		Map<MethodCall<Method>, Object> interceptions = allInterceptions.get(proxy);
+		if (interceptions == null) {
+			interceptions = new HashMap<>();
+			InlineMocker.this.allInterceptions.put(proxy, interceptions);
+		}
+		interceptions.put(methodCall, returnValue);
+	}
+
+	public class Stubber<U> {
 
 		private Object proxy;
 		private MethodCall<Method> methodCall;
 
-		public MockBehaviourBuilder(Object proxy, MethodCall<Method> methodCall) {
+		private Stubber(Object proxy, MethodCall<Method> methodCall) {
 			this.proxy = proxy;
 			this.methodCall = methodCall;
 		}
 
 		public void thenReturn(U returnValue) {
-			Map<MethodCall<Method>, Object> interceptions = InlineMocker.this.allInterceptions
-					.get(MockBehaviourBuilder.this.proxy);
-			if (interceptions == null) {
-				interceptions = new HashMap<>();
-				InlineMocker.this.allInterceptions.put(MockBehaviourBuilder.this.proxy, interceptions);
-			}
-			interceptions.put(methodCall, returnValue);
+			addInterception(proxy, methodCall, returnValue);
 		}
 
-		public <V> MockBehaviourBuilder<V> typeParameterize() {
-			return new MockBehaviourBuilder<>(proxy, methodCall);
+		private <V> Stubber<V> typeParameterize() {
+			return new Stubber<>(proxy, methodCall);
 		}
 
-		public Object getProxy() {
+		private Object getProxy() {
 			return proxy;
 		}
 
-		public MethodCall<Method> getMethodCall() {
+		private MethodCall<Method> getMethodCall() {
 			return methodCall;
 		}
 	}
 
-	public class AlternativeMockBehaviourBuilder<U> {
+	public class AlternativeStubber<U> {
 		private Object returnValue;
 
-		public AlternativeMockBehaviourBuilder(Object returnValue) {
+		private AlternativeStubber(Object returnValue) {
 			super();
 			this.returnValue = returnValue;
 		}
 
 		public void whenIntercepted(U dummy) {
-			undoCallRegistrationDuringUnpreparedStubbing();
-			MethodCall<Method> methodCall = InlineMocker.this.initialBehaviourBuilder.getMethodCall();
-			Object proxy = InlineMocker.this.initialBehaviourBuilder.getProxy();
-			Map<MethodCall<Method>, Object> interceptions = InlineMocker.this.allInterceptions.get(proxy);
-			if (interceptions == null) {
-				interceptions = new HashMap<>();
-				allInterceptions.put(proxy, interceptions);
-			}
-			interceptions.put(methodCall, AlternativeMockBehaviourBuilder.this.returnValue);
 		}
 
 		public <V> V when(V mock) {
-			InlineMocker.this.preparedProxyState = PreparedProxyState.Stubbing;
 			return mock;
+		}
+
+		private Object getReturnValue() {
+			return returnValue;
 		}
 
 	}
@@ -179,76 +185,104 @@ public class InlineMocker<T extends Calls<Method>> {
 
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-			if (args == null) {
-				args = new Object[0];
-			}
-			if (method.getName().equals("hashCode") && args.length == 0) {
-				return System.identityHashCode(proxy);
-			} else if (method.getName().equals("toString") && args.length == 0) {
-				return "Mock proxy object with hashCode: " + System.identityHashCode(proxy);
-			} else if (method.getName().equals("equals") && args.length == 1) {
-				return System.identityHashCode(proxy) == System.identityHashCode(args[0]);
+			MethodCall<Method> methodCall = new MethodCall<>(method, args == null ? new Object[0] : args);
+			Optional<Object> proxyRelatedReturnValue = toStringHashCodeEquals(proxy, methodCall);
+			if (proxyRelatedReturnValue.isPresent()) {
+				return proxyRelatedReturnValue.get();
 			}
 
-			MethodCall<Method> methodCall = new MethodCall<>(method, args);
 			T calls = allCalls.get(proxy);
-
-			if (InlineMocker.this.preparedProxyState == PreparedProxyState.Stubbing) {
-				// doReturn(retVal).when(mock).someMethod()
-				Map<MethodCall<Method>, Object> interceptions = InlineMocker.this.allInterceptions.get(proxy);
-				if (interceptions == null) {
-					interceptions = new HashMap<>();
-					allInterceptions.put(proxy, interceptions);
-				}
-				interceptions.put(methodCall, InlineMocker.this.returnValue);
-				InlineMocker.this.preparedProxyState = PreparedProxyState.Execution;
-				return DefaultValues.defaultValue(method.getReturnType());
-			} else if (InlineMocker.this.preparedProxyState == PreparedProxyState.Verification) {
-				if (DefaultCalls.class.isAssignableFrom(callsClass)) {
-					assert ((DefaultCalls<Method>) calls).verifyAndRemoveCall(timesInvoked, methodCall);
-				} else if (StrictCalls.class.isAssignableFrom(callsClass)) {
-					assert ((StrictCalls<Method>) calls).verifyAndRemoveCall(methodCall);
-				} else {
-					throw new NotImplementedException(String.format(
-							"Calls class %s is unknown and not implemented for %s.", callsClass, this.getClass()));
-				}
-				InlineMocker.this.preparedProxyState = PreparedProxyState.Execution;
-				timesInvoked = null;
-				return DefaultValues.defaultValue(method.getReturnType());
-			} else {// PreparedProxyState.Execution
-				// Prepare setting up mock behaviour in case we are doing an unprepared stubbing
-				initialBehaviourBuilder = new MockBehaviourBuilder<>(proxy, methodCall);
+			switch (InlineMocker.this.preparedProxyState) {
+			case STUBBING_ON_INTERCEPT: // mocker.doReturn(retVal).when(mock).someMethod();
+				InlineMocker.this.preparedProxyState = PreparedProxyState.MOCKING_ON_INTERCEPT;
+				return stub(proxy, methodCall);
+			case VERIFICATION_ON_INTERCEPT: // mocker.assertCalled(Invoked.ONCE, mock).someMethod(someArg);
+				InlineMocker.this.preparedProxyState = PreparedProxyState.MOCKING_ON_INTERCEPT;
+				return verifyAndRemoveCall(proxy, methodCall, calls);
+			case MOCKING_ON_INTERCEPT: // mock.someMethod();
+				// Start stubbing in case this intercept was executed as part of
+				// mocker.whenIntercepted(mock.someMethod()).thenReturn(retVal);
+				stubber = new Stubber<>(proxy, methodCall);
 				// Register this proxy method invocation for later verification (needs to be
-				// removed for unprepared stubbing)
-				calls.registerCall(method, args);
-				// Interceptions go before delegations
-				Map<MethodCall<Method>, Object> interceptions = allInterceptions.get(proxy);
-				if (interceptions != null) {
-					if (interceptions.containsKey(methodCall)) {
-						Object returnValue = interceptions.get(methodCall);
-						return returnValue;
-					}
-				}
-				/*
-				 * Both the mock and delegate are instances of the interface (see delegate(..)
-				 * method). We only want to delegate methods in the interface. If the current
-				 * method is in the interface, the declaring class is the interface. Therefore,
-				 * we request a tuple key with this interface and proxy, and invoke the delegate
-				 * if it has been set (not null).
-				 *
-				 */
-				Object delegate = delegates.get(new Tuple<>(method.getDeclaringClass(), proxy));
-				if (delegate != null) {
-					try {
-						return method.invoke(delegate, args);
-					} catch (InvocationTargetException e) {
-						log.error("Cannot invoke delegate method {}.", method, e);
-						throw e.getTargetException();
-					}
-				}
-				log.info("Method {} was not delegated. Returning default value.", method.getName());
-				return DefaultValues.defaultValue(method.getReturnType());
+				// removed if stubbing proceeds from instantiated stubber): see
+				// mocker.whenIntercepted(..) and undoCallRegistrationDuringUnpreparedStubbing()
+				calls.registerCall(methodCall.getMethod(), methodCall.getArgs());
+				Optional<Object> stubReturnValue = executeStub(proxy, methodCall);
+				return stubReturnValue.orElseGet(
+						() -> executeDelegate(proxy, methodCall).orElseGet(() -> defaultValueForReturnType(method)));
+			default:
+				throw new NotImplementedException(String.format("Not implemented prepared proxy state encountered: %s",
+						InlineMocker.this.preparedProxyState));
 			}
 		}
+
+		private Optional<Object> toStringHashCodeEquals(Object proxy, MethodCall<Method> methodCall) {
+			if (methodCall.getMethod().getName().equals("hashCode") && methodCall.getArgs().length == 0) {
+				return Optional.of(System.identityHashCode(proxy));
+			} else if (methodCall.getMethod().getName().equals("toString") && methodCall.getArgs().length == 0) {
+				return Optional.of("Mock proxy object with hashCode: " + System.identityHashCode(proxy));
+			} else if (methodCall.getMethod().getName().equals("equals") && methodCall.getArgs().length == 1) {
+				return Optional.of(System.identityHashCode(proxy) == System.identityHashCode(methodCall.getArgs()[0]));
+			} else {
+				return Optional.empty();
+			}
+		}
+
+		private Object stub(Object proxy, MethodCall<Method> methodCall) {
+			addInterception(proxy, methodCall, InlineMocker.this.alternativeStubber.getReturnValue());
+			return DefaultValues.defaultValue(methodCall.getMethod().getReturnType());
+		}
+
+		private Object verifyAndRemoveCall(Object proxy, MethodCall<Method> methodCall, T calls) {
+			if (DefaultCalls.class.isAssignableFrom(callsClass)) {
+				assert ((DefaultCalls<Method>) calls)
+						.verifyAndRemoveCall(InlineMocker.this.verificationState.timesInvoked, methodCall);
+			} else if (StrictCalls.class.isAssignableFrom(callsClass)) {
+				assert ((StrictCalls<Method>) calls).verifyAndRemoveCall(methodCall);
+			} else {
+				throw new NotImplementedException(String.format("Calls class %s is unknown and not implemented for %s.",
+						callsClass, this.getClass()));
+			}
+			InlineMocker.this.verificationState.timesInvoked = null;
+			return DefaultValues.defaultValue(methodCall.getMethod().getReturnType());
+		}
+
+		private Optional<Object> executeStub(Object proxy, MethodCall<Method> methodCall) {
+			Map<MethodCall<Method>, Object> interceptions = allInterceptions.get(proxy);
+			if (interceptions != null) {
+				if (interceptions.containsKey(methodCall)) {
+					Object returnValue = interceptions.get(methodCall);
+					return Optional.ofNullable(returnValue);
+				}
+			}
+			return Optional.empty();
+		}
+
+		/*
+		 * Both the mock and delegate are instances of the interface (see delegate(..)
+		 * method). We only want to delegate methods in the interface. If the current
+		 * method is in the interface, the declaring class is the interface. Therefore,
+		 * we request a tuple key with this interface and proxy, and invoke the delegate
+		 * if it has been set (not null).
+		 *
+		 */
+		private Optional<Object> executeDelegate(Object proxy, MethodCall<Method> methodCall) {
+			Object delegate = delegates.get(new Tuple<>(methodCall.getMethod().getDeclaringClass(), proxy));
+			if (delegate != null) {
+				try {
+					return Optional.ofNullable(methodCall.getMethod().invoke(delegate, methodCall.getArgs()));
+				} catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException e) {
+					log.error("Cannot invoke delegate method {}.", methodCall.getMethod(), e.getCause());
+					throw new RuntimeException(e);
+				}
+			}
+			return Optional.empty();
+		}
+
+		private Object defaultValueForReturnType(Method method) {
+			log.info("Method {} was not delegated. Returning default value.", method.getName());
+			return DefaultValues.defaultValue(method.getReturnType());
+		}
 	}
+
 }
