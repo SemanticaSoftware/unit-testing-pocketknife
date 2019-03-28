@@ -12,6 +12,7 @@ import com.semantica.pocketknife.calls.Calls;
 import com.semantica.pocketknife.calls.CallsFactory;
 import com.semantica.pocketknife.calls.DefaultCalls;
 import com.semantica.pocketknife.calls.Invoked;
+import com.semantica.pocketknife.calls.Return;
 
 public class InlineMockerTest {
 
@@ -51,9 +52,52 @@ public class InlineMockerTest {
 				(Class<DefaultCalls<Method>>) carCalls.getClass());
 		Car carMock = mocker.mock(Car.class, carCalls);
 
-		// Intercept method .drive() and make it return 'proxy roll!'
+		// Intercept method .drive() and make it return 'proxy roll!' (2x since the
+		// mock's drive() method is invoked 2x)
+		mocker.doReturn(DRIVE_RETURN_VALUE, DRIVE_RETURN_VALUE).whenIntercepted(carMock.drive(METERS));
 
-		mocker.doReturn(DRIVE_RETURN_VALUE).whenIntercepted(carMock.drive(METERS));
+		// Confirm the result of method drive
+		Assertions.assertEquals(DRIVE_RETURN_VALUE, carMock.drive(METERS));
+
+		mocker.assertCalled(Invoked.ONCE, carMock).drive(METERS);
+		mocker.assertNoMoreMethodInvocations(carMock);
+//		assert carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
+//		assert carCalls.verifyNoMoreMethodInvocations();
+
+		// Method park returns null because it was not intercepted or delegated.
+		Assertions.assertNull(carMock.park());
+
+		// Delegate method calls to the object car
+		mocker.delegate(Car.class, carMock, volkswagen);
+
+		// Now park() returns 'stalled.' because it was delegated to car.park()
+		Assertions.assertEquals("stalled.", carMock.park());
+
+		// The interception prevails over delegation
+		Assertions.assertEquals(DRIVE_RETURN_VALUE, carMock.drive(METERS));
+
+	}
+
+	@Test
+	public void testnew() {
+
+		// Original
+		Assertions.assertEquals(String.format("rolling %dm...", METERS), volkswagen.drive(METERS));
+		Assertions.assertNotNull(volkswagen.park());
+
+		// Create a mock, for now all methods return null
+		DefaultCalls<Method> carCalls = CallsFactory.getDefaultCalls();
+//		@SuppressWarnings("unchecked")
+//		Class<? extends Calls<Method>> clazz = (Class<? extends Calls<Method>>) carCalls.getClass();
+		@SuppressWarnings("unchecked")
+		InlineMocker<DefaultCalls<Method>> mocker = new InlineMocker<>(
+				(Class<DefaultCalls<Method>>) carCalls.getClass());
+		Car carMock = mocker.mock(Car.class, carCalls);
+
+		// Intercept method .drive() and make it return 'proxy roll!' (2x since the
+		// mock's drive() method is invoked 2x)
+		/* ****2x*** */
+		mocker.whenIntercepted(carMock.drive(METERS)).thenReturn(DRIVE_RETURN_VALUE, Return.TWICE);
 
 		// Confirm the result of method drive
 		Assertions.assertEquals(DRIVE_RETURN_VALUE, carMock.drive(METERS));

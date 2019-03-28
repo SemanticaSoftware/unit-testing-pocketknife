@@ -4,9 +4,12 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 
 import org.apache.commons.lang3.NotImplementedException;
 
@@ -14,9 +17,11 @@ import com.semantica.pocketknife.calls.Calls;
 import com.semantica.pocketknife.calls.DefaultCalls;
 import com.semantica.pocketknife.calls.Invoked;
 import com.semantica.pocketknife.calls.MethodCall;
+import com.semantica.pocketknife.calls.Return;
 import com.semantica.pocketknife.calls.StrictCalls;
 import com.semantica.pocketknife.methodrecorder.DefaultValues;
 import com.semantica.pocketknife.methodrecorder.MethodRecorder;
+import com.semantica.pocketknife.util.TestUtils;
 import com.semantica.pocketknife.util.Tuple;
 
 /**
@@ -37,9 +42,9 @@ public class InlineMocker<T extends Calls<Method>> {
 
 	private final Class<T> callsClass;
 	// key: the proxy (mock) instance
-	private final Map<Object, Map<MethodCall<Method>, Object>> allInterceptions = new HashMap<>();
+	private final Map<Object, Map<MethodCall<Method>, Queue<Object>>> allInterceptions = new HashMap<>();
 	private final Map<Object, MethodRecorder<?>> methodRecorders = new HashMap<>();
-	private final Map<Object, T> allCalls = new HashMap<>();
+	private final Map<Object, T> allCallsRegistries = new HashMap<>();
 	// key: tuple of class of delegated interface and mock instance
 	private final Map<Tuple<Class<?>, ?>, Object> delegates = new HashMap<>();
 
@@ -66,7 +71,7 @@ public class InlineMocker<T extends Calls<Method>> {
 	public <S> S mock(Class<S> clazz, T calls) {
 		S proxy = (S) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { clazz }, handler);
 		methodRecorders.put(proxy, MethodRecorder.recordInvocationsOn(clazz));
-		allCalls.put(proxy, calls);
+		allCallsRegistries.put(proxy, calls);
 		return proxy;
 	}
 
@@ -76,13 +81,22 @@ public class InlineMocker<T extends Calls<Method>> {
 	}
 
 	private void undoCallRegistrationDuringUnpreparedStubbing() {
-		Calls<Method> calls = allCalls.get(stubber.getProxy());
+		Calls<Method> calls = allCallsRegistries.get(stubber.getProxy());
 		calls.removeCall(stubber.getMethodCall());
 	}
 
-	public <S> AlternativeStubber<S> doReturn(S returnValue) {
+	public <S> AlternativeStubber<S> doReturn(S returnValue, @SuppressWarnings("unchecked") S... returnValues) {
 		this.preparedProxyState = PreparedProxyState.STUBBING_ON_INTERCEPT;
-		AlternativeStubber<S> alternativeStubber = new AlternativeStubber<>(returnValue);
+		AlternativeStubber<S> alternativeStubber = new AlternativeStubber<>(
+				TestUtils.toList(returnValue, returnValues));
+		this.alternativeStubber = alternativeStubber;
+		return alternativeStubber;
+	}
+
+	public <S> AlternativeStubber<S> doReturn(S returnValue, Return returnTimes) {
+		this.preparedProxyState = PreparedProxyState.STUBBING_ON_INTERCEPT;
+		AlternativeStubber<S> alternativeStubber = new AlternativeStubber<>(
+				TestUtils.fillList(returnValue, returnTimes.getTimes()));
 		this.alternativeStubber = alternativeStubber;
 		return alternativeStubber;
 	}
@@ -120,17 +134,29 @@ public class InlineMocker<T extends Calls<Method>> {
 
 	public void assertNoMoreMethodInvocations(Object... mocks) {
 		for (Object mock : mocks) {
-			assert allCalls.get(mock).verifyNoMoreMethodInvocations();
+			assert allCallsRegistries.get(mock).verifyNoMoreMethodInvocations();
 		}
 	}
 
-	private void addInterception(Object proxy, MethodCall<Method> methodCall, Object returnValue) {
-		Map<MethodCall<Method>, Object> interceptions = allInterceptions.get(proxy);
+	private void addInterceptions(Object proxy, MethodCall<Method> methodCall, Object returnValue,
+			Object... returnValues) {
+		addInterceptions(proxy, methodCall, TestUtils.toList(returnValue, returnValues));
+	}
+
+	private void addInterceptions(Object proxy, MethodCall<Method> methodCall, List<Object> returnValues) {
+		Map<MethodCall<Method>, Queue<Object>> interceptions = allInterceptions.get(proxy);
 		if (interceptions == null) {
 			interceptions = new HashMap<>();
 			InlineMocker.this.allInterceptions.put(proxy, interceptions);
 		}
-		interceptions.put(methodCall, returnValue);
+		Queue<Object> orderedReturnValues = interceptions.get(proxy);
+		if (orderedReturnValues == null) {
+			orderedReturnValues = new ArrayDeque<>(returnValues.size());
+			interceptions.put(methodCall, orderedReturnValues);
+		}
+		for (Object returnValue : returnValues) {
+			orderedReturnValues.add(returnValue);
+		}
 	}
 
 	public class Stubber<U> {
@@ -143,8 +169,20 @@ public class InlineMocker<T extends Calls<Method>> {
 			this.methodCall = methodCall;
 		}
 
-		public void thenReturn(U returnValue) {
-			addInterception(proxy, methodCall, returnValue);
+		/**
+		 * Returns the given {@code returnValues} from the mock in the same order as in
+		 * the {@link List} for consecutive method calls on the mock.
+		 *
+		 * @param returnValues
+		 */
+		public Stubber<U> thenReturn(U returnValue, @SuppressWarnings("unchecked") U... returnValues) {
+			addInterceptions(proxy, methodCall, returnValue, returnValues);
+			return this;
+		}
+
+		public Stubber<U> thenReturn(U returnValue, Return returnTimes) {
+			addInterceptions(proxy, methodCall, TestUtils.fillList(returnValue, returnTimes.getTimes()));
+			return this;
 		}
 
 		private <V> Stubber<V> typeParameterize() {
@@ -161,22 +199,23 @@ public class InlineMocker<T extends Calls<Method>> {
 	}
 
 	public class AlternativeStubber<U> {
-		private Object returnValue;
+		private final List<Object> returnValues;
 
-		private AlternativeStubber(Object returnValue) {
+		private AlternativeStubber(List<Object> returnValues) {
 			super();
-			this.returnValue = returnValue;
+			this.returnValues = returnValues;
 		}
 
-		public void whenIntercepted(U dummy) {
+		public AlternativeStubber<U> whenIntercepted(U dummy) {
+			return this;
 		}
 
 		public <V> V when(V mock) {
 			return mock;
 		}
 
-		private Object getReturnValue() {
-			return returnValue;
+		private List<Object> getReturnValues() {
+			return returnValues;
 		}
 
 	}
@@ -191,7 +230,7 @@ public class InlineMocker<T extends Calls<Method>> {
 				return proxyRelatedReturnValue.get();
 			}
 
-			T calls = allCalls.get(proxy);
+			T calls = allCallsRegistries.get(proxy);
 			switch (InlineMocker.this.preparedProxyState) {
 			case STUBBING_ON_INTERCEPT: // mocker.doReturn(retVal).when(mock).someMethod();
 				InlineMocker.this.preparedProxyState = PreparedProxyState.MOCKING_ON_INTERCEPT;
@@ -229,7 +268,7 @@ public class InlineMocker<T extends Calls<Method>> {
 		}
 
 		private Object stub(Object proxy, MethodCall<Method> methodCall) {
-			addInterception(proxy, methodCall, InlineMocker.this.alternativeStubber.getReturnValue());
+			addInterceptions(proxy, methodCall, InlineMocker.this.alternativeStubber.getReturnValues());
 			return DefaultValues.defaultValue(methodCall.getMethod().getReturnType());
 		}
 
@@ -248,10 +287,10 @@ public class InlineMocker<T extends Calls<Method>> {
 		}
 
 		private Optional<Object> executeStub(Object proxy, MethodCall<Method> methodCall) {
-			Map<MethodCall<Method>, Object> interceptions = allInterceptions.get(proxy);
+			Map<MethodCall<Method>, Queue<Object>> interceptions = allInterceptions.get(proxy);
 			if (interceptions != null) {
 				if (interceptions.containsKey(methodCall)) {
-					Object returnValue = interceptions.get(methodCall);
+					Object returnValue = interceptions.get(methodCall).poll();
 					return Optional.ofNullable(returnValue);
 				}
 			}

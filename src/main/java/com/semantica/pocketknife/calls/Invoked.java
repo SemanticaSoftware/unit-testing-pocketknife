@@ -16,7 +16,7 @@ public class Invoked {
 
 	public final int times;
 
-	private Invoked(int times) {
+	protected Invoked(int times) {
 		super();
 		this.times = times;
 	}

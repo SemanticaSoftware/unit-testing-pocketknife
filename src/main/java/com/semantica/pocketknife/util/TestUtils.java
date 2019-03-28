@@ -1,5 +1,8 @@
 package com.semantica.pocketknife.util;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TestUtils {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(TestUtils.class);
@@ -53,6 +56,40 @@ public class TestUtils {
 		} else {
 			return cardinal + "th";
 		}
+	}
+
+	/**
+	 * Returns a list with the first argument ({@code single}) and all elements of
+	 * the second array argument ({@code multiple}).
+	 *
+	 * @param single   The first element to be added to the list.
+	 * @param multiple The other elements to be added to the list in order after
+	 *                 {@code sinlge}.
+	 * @return A List with all elements
+	 */
+	public static <T> List<T> toList(T single, T[] multiple) {
+		List<T> list = new ArrayList<>(1 + multiple.length);
+		list.add(single);
+		for (T el : multiple) {
+			list.add(el);
+		}
+		return list;
+	}
+
+	/**
+	 * Creates a list filled with the given element ({@code el}) the given amount of
+	 * times.
+	 *
+	 * @param el    Element to fill the list with.
+	 * @param times Number of elements to fill the list with.
+	 * @return A List with {@code times} elements
+	 */
+	public static <T> List<T> fillList(T el, int times) {
+		List<T> list = new ArrayList<>(times);
+		for (int i = 0; i < times; i++) {
+			list.add(el);
+		}
+		return list;
 	}
 
 }

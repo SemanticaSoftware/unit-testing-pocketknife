@@ -1,5 +1,8 @@
 package com.semantica.pocketknife.util;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 public class TestUtilsTest {
@@ -27,6 +30,21 @@ public class TestUtilsTest {
 	public void shouldReturnCorrectMethodName() {
 		TestUtils.traceLogMethodCall(0);
 		assert TestUtils.getMethodName(0).equals("shouldReturnCorrectMethodName");
+	}
+
+	@Test
+	public void shouldReturnListWithAllElements() {
+		char a = 'a';
+		Character[] bc = { 'b', 'c' };
+		List<Character> abc = TestUtils.toList(a, bc);
+		Assert.actual(abc).equalsExpected(Arrays.asList('a', 'b', 'c'));
+	}
+
+	@Test
+	public void shouldReturnListWithElementRepeated() {
+		char a = 'a';
+		List<Character> abc = TestUtils.fillList(a, 3);
+		Assert.actual(abc).equalsExpected(Arrays.asList('a', 'a', 'a'));
 	}
 
 }
