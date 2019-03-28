@@ -71,12 +71,12 @@ abstract class AbstractCallsRegistry<T> implements Calls<T> {
 		addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
 	}
 
-	private void requireNonNull(Object[] args) {
+	protected void requireNonNull(Object[] args) {
 		Objects.requireNonNull(args,
 				"When a call is invoked without arguments, please use a zero-length args array (new Object[0]) instead of null.");
 	}
 
-	private void addStackTraceToCalls(MethodCall<T> methodCall, StackTraceElement[] stackTrace) {
+	protected void addStackTraceToCalls(MethodCall<T> methodCall, StackTraceElement[] stackTrace) {
 		List<MethodCallInformation> stackTraces = calls.get(methodCall);
 		if (stackTraces == null) {
 			stackTraces = new ArrayList<>();

@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
  *
  * @param <T>
  */
-class StrictCallsRegistry<T> extends AbstractCallsRegistry<T> implements StrictCalls<T> {
+public class StrictCallsRegistry<T> extends AbstractCallsRegistry<T> implements StrictCalls<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(StrictCallsRegistry.class);
 	private int sequentialCallVerificationNo = 0;

@@ -10,7 +10,7 @@ package com.semantica.pocketknife.calls;
  *
  * @param <T>
  */
-class CallsRegistry<T> extends AbstractCallsRegistry<T> implements DefaultCalls<T> {
+public class CallsRegistry<T> extends AbstractCallsRegistry<T> implements DefaultCalls<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CallsRegistry.class);
 

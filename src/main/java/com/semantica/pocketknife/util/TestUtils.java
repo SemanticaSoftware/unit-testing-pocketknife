@@ -1,6 +1,7 @@
 package com.semantica.pocketknife.util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class TestUtils {
@@ -90,6 +91,19 @@ public class TestUtils {
 			list.add(el);
 		}
 		return list;
+	}
+
+	/**
+	 * Returns a stack trace with the first {code elementsToRemoveFromBeginning}
+	 * elements removed.
+	 *
+	 * @param elementsToRemoveFromBeginning Number of elements to remove from the
+	 *                                      beginning.
+	 * @return The truncated stack trace.
+	 */
+	public static StackTraceElement[] getTruncatedStackTrace(int elementsToRemoveFromBeginning) {
+		return Arrays.stream(Thread.currentThread().getStackTrace()).skip(elementsToRemoveFromBeginning + 1)
+				.toArray(StackTraceElement[]::new); // +1 for also counting this method in distance
 	}
 
 }

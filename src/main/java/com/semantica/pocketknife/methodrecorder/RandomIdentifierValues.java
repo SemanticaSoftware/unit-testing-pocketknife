@@ -40,7 +40,7 @@ import net.sf.cglib.proxy.MethodProxy;
  * @author A. Haanstra
  *
  */
-class RandomIdentifierValues {
+public class RandomIdentifierValues {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RandomIdentifierValues.class);
 	private static final Random RANDOM = new Random();
@@ -61,7 +61,7 @@ class RandomIdentifierValues {
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	static <T> T identifierValue(Class<T> clazz) {
+	public static <T> T identifierValue(Class<T> clazz) {
 		if (clazz.isArray()) {
 			return (T) java.lang.reflect.Array.newInstance(clazz.getComponentType(), 1);
 		} else if (clazz == Boolean.class || clazz == boolean.class) {

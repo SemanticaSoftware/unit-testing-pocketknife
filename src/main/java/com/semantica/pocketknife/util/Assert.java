@@ -8,25 +8,34 @@ public class Assert {
 		super();
 	}
 
-	public static class Asserter<T> {
+	public static <T> EqualsAsserter<T> actual(T actual) {
+		return new EqualsAsserter<>(actual);
+	}
+
+	public static class EqualsAsserter<T> {
 
 		private T actual;
 
-		private Asserter(T actual) {
+		private EqualsAsserter(T actual) {
 			super();
 			this.actual = actual;
 		}
 
-		public void equalsExpected(T expected) {
-			if (!actual.equals(expected)) {
+		public boolean equalsExpected(T expected) {
+			boolean equals = actual.equals(expected);
+			if (!equals) {
 				throw new AssertionFailedError(
 						SelectJunitAssertUtils.format(expected, actual, "!actual.equals(expected)"), expected, actual);
+			} else {
+				return true;
 			}
 		}
-	}
 
-	public static <T> Asserter<T> actual(T actual) {
-		return new Asserter<>(actual);
+		@SuppressWarnings("unchecked")
+		@Override
+		public boolean equals(Object expected) {
+			return equalsExpected((T) expected);
+		}
 	}
 
 }

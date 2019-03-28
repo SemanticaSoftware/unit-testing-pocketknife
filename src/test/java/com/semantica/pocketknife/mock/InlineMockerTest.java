@@ -2,6 +2,7 @@ package com.semantica.pocketknife.mock;
 
 import java.lang.reflect.Method;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,10 +10,12 @@ import org.junit.jupiter.api.Test;
 import com.semantica.pocketknife.Mock;
 import com.semantica.pocketknife.MocksRegistry;
 import com.semantica.pocketknife.calls.Calls;
-import com.semantica.pocketknife.calls.CallsFactory;
 import com.semantica.pocketknife.calls.DefaultCalls;
 import com.semantica.pocketknife.calls.Invoked;
 import com.semantica.pocketknife.calls.Return;
+import com.semantica.pocketknife.calls.StrictCalls;
+import com.semantica.pocketknife.mock.InlineMocker.InlineMockers;
+import com.semantica.pocketknife.util.Assert;
 
 public class InlineMockerTest {
 
@@ -44,13 +47,8 @@ public class InlineMockerTest {
 		Assertions.assertNotNull(volkswagen.park());
 
 		// Create a mock, for now all methods return null
-		DefaultCalls<Method> carCalls = CallsFactory.getDefaultCalls();
-//		@SuppressWarnings("unchecked")
-//		Class<? extends Calls<Method>> clazz = (Class<? extends Calls<Method>>) carCalls.getClass();
-		@SuppressWarnings("unchecked")
-		InlineMocker<DefaultCalls<Method>> mocker = new InlineMocker<>(
-				(Class<DefaultCalls<Method>>) carCalls.getClass());
-		Car carMock = mocker.mock(Car.class, carCalls);
+		InlineMocker<DefaultCalls<Method>> mocker = InlineMockers.getDefault();
+		Car carMock = mocker.mock(Car.class);
 
 		// Intercept method .drive() and make it return 'proxy roll!' (2x since the
 		// mock's drive() method is invoked 2x)
@@ -61,8 +59,6 @@ public class InlineMockerTest {
 
 		mocker.assertCalled(Invoked.ONCE, carMock).drive(METERS);
 		mocker.assertNoMoreMethodInvocations(carMock);
-//		assert carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
-//		assert carCalls.verifyNoMoreMethodInvocations();
 
 		// Method park returns null because it was not intercepted or delegated.
 		Assertions.assertNull(carMock.park());
@@ -86,13 +82,8 @@ public class InlineMockerTest {
 		Assertions.assertNotNull(volkswagen.park());
 
 		// Create a mock, for now all methods return null
-		DefaultCalls<Method> carCalls = CallsFactory.getDefaultCalls();
-//		@SuppressWarnings("unchecked")
-//		Class<? extends Calls<Method>> clazz = (Class<? extends Calls<Method>>) carCalls.getClass();
-		@SuppressWarnings("unchecked")
-		InlineMocker<DefaultCalls<Method>> mocker = new InlineMocker<>(
-				(Class<DefaultCalls<Method>>) carCalls.getClass());
-		Car carMock = mocker.mock(Car.class, carCalls);
+		InlineMocker<DefaultCalls<Method>> mocker = InlineMockers.getDefault();
+		Car carMock = mocker.mock(Car.class);
 
 		// Intercept method .drive() and make it return 'proxy roll!' (2x since the
 		// mock's drive() method is invoked 2x)
@@ -104,8 +95,6 @@ public class InlineMockerTest {
 
 		mocker.assertCalled(Invoked.ONCE, carMock).drive(METERS);
 		mocker.assertNoMoreMethodInvocations(carMock);
-//		assert carCalls.verifyAndRemoveCall(Invoked.ONCE, drive);
-//		assert carCalls.verifyNoMoreMethodInvocations();
 
 		// Method park returns null because it was not intercepted or delegated.
 		Assertions.assertNull(carMock.park());
@@ -124,18 +113,14 @@ public class InlineMockerTest {
 	@Test
 	public void test2() {
 		// Create a mock, for now all methods return null
-		DefaultCalls<Method> carCalls = CallsFactory.getDefaultCalls();
-		@SuppressWarnings("unchecked")
-		InlineMocker<DefaultCalls<Method>> mocker = new InlineMocker<>(
-				(Class<DefaultCalls<Method>>) carCalls.getClass());
+		InlineMocker<DefaultCalls<Method>> mocker = InlineMockers.getDefault();
 		// Original
 		Assertions.assertEquals(String.format("rolling %dm...", METERS), volkswagen.drive(METERS));
 		Assertions.assertNotNull(volkswagen.park());
 
-		Car carMock = mocker.mock(Car.class, carCalls);
+		Car carMock = mocker.mock(Car.class);
 
 		// Intercept method .drive() and make it return 'proxy roll!'
-
 		mocker.whenIntercepted(carMock.drive(METERS)).thenReturn(DRIVE_RETURN_VALUE);
 
 		// Confirm the result of method drive
@@ -150,14 +135,36 @@ public class InlineMockerTest {
 	}
 
 	@Test
+	public void shouldVerifyMethodInvocationsStrictly() {
+		InlineMocker<StrictCalls<Method>> mocker = InlineMockers.getStrict();
+		Car carMock = mocker.mock(Car.class);
+		mocker.whenIntercepted(carMock.drive(METERS)).thenReturn(DRIVE_RETURN_VALUE);
+
+		Assert.actual(carMock.drive(METERS)).equalsExpected(DRIVE_RETURN_VALUE);
+
+		mocker.assertCalled(carMock).drive(METERS);
+		mocker.assertNoMoreMethodInvocations(carMock);
+		mocker.assertNoMoreMethodInvocationsAnywhere();
+	}
+
+	@Test
+	public void shouldVerifyMethodInvocationsStrictlyWithMatcher() {
+		InlineMocker<StrictCalls<Method>> mocker = InlineMockers.getStrict();
+		Car carMock = mocker.mock(Car.class);
+		mocker.whenIntercepted(carMock.drive(METERS)).thenReturn(DRIVE_RETURN_VALUE);
+
+		Assert.actual(carMock.drive(METERS)).equalsExpected(DRIVE_RETURN_VALUE);
+
+		mocker.assertCalled(carMock).drive(mocker.matchArgWith(Matchers.any(int.class), int.class));
+		mocker.assertNoMoreMethodInvocations(carMock);
+		mocker.assertNoMoreMethodInvocationsAnywhere();
+	}
+
+	@Test
 	public void unverifiedmockShouldCauseVerificationToFail() {
-		DefaultCalls<Method> callsCalls = CallsFactory.getDefaultCalls();
-		DefaultCalls<Method> mockCalls = CallsFactory.getDefaultCalls();
-		@SuppressWarnings("unchecked")
-		InlineMocker<DefaultCalls<Method>> mocker = new InlineMocker<>(
-				(Class<DefaultCalls<Method>>) callsCalls.getClass());
-		Calls<?> callsMock = mocker.mock(Calls.class, callsCalls);
-		Mock unverifiedmockMock = mocker.mock(Mock.class, mockCalls);
+		InlineMocker<DefaultCalls<Method>> mocker = InlineMockers.getDefault();
+		Calls<?> callsMock = mocker.mock(Calls.class);
+		Mock unverifiedmockMock = mocker.mock(Mock.class);
 
 		mocker.doReturn(callsMock).when(unverifiedmockMock).getCalls();
 		mocker.whenIntercepted(callsMock.verifyNoMoreMethodInvocations(false)).thenReturn(false);
