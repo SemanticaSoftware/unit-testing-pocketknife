@@ -7,12 +7,12 @@ import java.util.Optional;
 
 import com.semantica.pocketknife.calls.Invoked;
 
-public class InlineMockerMockVerificationStore implements InlineMocker.MockVerificationStore {
+public class InlineMockerMockStore implements InlineMocker.CapturedMatchersStore, InlineMocker.MockVerificationStore {
 
 	private Invoked timesInvoked;
 	private List<MatcherCapture<?>> matcherCaptures;
 
-	public InlineMockerMockVerificationStore() {
+	public InlineMockerMockStore() {
 		super();
 		matcherCaptures = new ArrayList<>();
 	}
@@ -33,7 +33,7 @@ public class InlineMockerMockVerificationStore implements InlineMocker.MockVerif
 	}
 
 	@Override
-	public Iterator<MatcherCapture<?>> getMatcherCapturesIteratorAndEmptyMatcherCapturesForNextVerification() {
+	public Iterator<MatcherCapture<?>> getMatcherCapturesIterator() {
 		return matcherCaptures.iterator();
 	}
 

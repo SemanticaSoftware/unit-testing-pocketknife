@@ -22,7 +22,7 @@ public class Assert {
 		}
 
 		public boolean equalsExpected(T expected) {
-			boolean equals = actual.equals(expected);
+			boolean equals = expected.equals(actual);
 			if (!equals) {
 				throw new AssertionFailedError(
 						SelectJunitAssertUtils.format(expected, actual, "!actual.equals(expected)"), expected, actual);

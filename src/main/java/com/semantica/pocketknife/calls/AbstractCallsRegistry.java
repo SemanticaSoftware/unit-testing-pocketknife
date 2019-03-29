@@ -12,8 +12,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.hamcrest.Matcher;
-
 import com.semantica.pocketknife.util.TestUtils;
 
 /**
@@ -49,9 +47,9 @@ abstract class AbstractCallsRegistry<T> implements Calls<T> {
 	public void registerCall(Object... args) {
 		requireNonNull(args);
 		if (keyClass == String.class) {
-			TestUtils.traceLogMethodCall(1);
+			TestUtils.traceLogMethodCall(2);
 			@SuppressWarnings("unchecked")
-			T methodName = (T) TestUtils.getMethodName(1);
+			T methodName = (T) TestUtils.getMethodName(2);
 			MethodCall<T> methodCall = new MethodCall<>(methodName, args);
 			addStackTraceToCalls(methodCall, Thread.currentThread().getStackTrace());
 		} else {
@@ -87,47 +85,7 @@ abstract class AbstractCallsRegistry<T> implements Calls<T> {
 
 	protected MethodCall<T> getStoredExactMethodCall(MethodCall<T> methodCall) {
 		Set<MethodCall<T>> registeredMethodCalls = calls.keySet();
-		final MethodCall<T> queryMethodCall = methodCall;
-		List<MethodCall<T>> matchingCalls = registeredMethodCalls.stream()
-				.filter(registeredCall -> registeredCall.getMethod().equals(queryMethodCall.getMethod()))
-				.filter(registeredCall -> registeredCall.getArgs().length == queryMethodCall.getArgs().length)
-				.filter(registeredCall -> match(registeredCall, queryMethodCall)).collect(Collectors.toList());
-		if (matchingCalls.size() > 1) {
-			throw new IllegalArgumentException("The methodCall was ambiguously specified using matching arguments.");
-		} else if (matchingCalls.size() == 1) {
-			return matchingCalls.get(0);
-		} else {
-			return null;
-		}
-	}
-
-	private boolean match(MethodCall<T> subject, MethodCall<T> query) {
-		boolean matches = true;
-		for (int i = 0; i < query.getArgs().length; i++) {
-			Object queryArg = query.getArgs()[i];
-			Object subjectArg = subject.getArgs()[i];
-			if (queryArg instanceof Matcher) {
-				Matcher<?> matcher = (Matcher<?>) queryArg;
-				matches &= matcher.matches(subjectArg);
-			} else if (queryArg instanceof Predicate) {
-				Predicate<?> predicate = (Predicate<?>) queryArg;
-				matches &= predicateMatches(predicate, subjectArg);
-			} else {
-				if (subjectArg != null && queryArg != null && subjectArg.getClass().isArray()
-						&& queryArg.getClass().isArray()) {
-					matches &= Arrays.deepEquals((Object[]) queryArg, (Object[]) subjectArg);
-				} else {
-					matches &= queryArg == null ? queryArg == subjectArg : queryArg.equals(subjectArg);
-				}
-			}
-		}
-		return matches;
-	}
-
-	private <S> boolean predicateMatches(Predicate<?> predicate, S subject) {
-		@SuppressWarnings("unchecked")
-		Predicate<S> applicablePredicate = (Predicate<S>) predicate;
-		return applicablePredicate.test(subject);
+		return CallsUtils.getStoredExactMethodCall(methodCall, registeredMethodCalls);
 	}
 
 	public boolean verifyNoMoreMethodInvocations() {

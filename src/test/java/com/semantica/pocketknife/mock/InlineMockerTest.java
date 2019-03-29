@@ -2,6 +2,7 @@ package com.semantica.pocketknife.mock;
 
 import java.lang.reflect.Method;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -148,6 +149,20 @@ public class InlineMockerTest {
 
 	@Test
 	public void shouldVerifyMethodInvocationsStrictlyWithMatcher() {
+		InlineMocker<StrictCalls<Method>> mocker = InlineMockers.getStrict();
+		Car carMock = mocker.mock(Car.class);
+		mocker.whenIntercepted(carMock.drive(mocker.matchArgWith(Matchers.any(Integer.class), Integer.class)))
+				.thenReturn(DRIVE_RETURN_VALUE);
+
+		Assert.actual(carMock.drive(METERS)).equalsExpected(DRIVE_RETURN_VALUE);
+
+		mocker.assertCalled(carMock).drive(METERS);
+		mocker.assertNoMoreMethodInvocations(carMock);
+		mocker.assertNoMoreMethodInvocationsAnywhere();
+	}
+
+	@Test
+	public void shouldReturnStubWhenArgumentMatchesMatcher() {
 		InlineMocker<StrictCalls<Method>> mocker = InlineMockers.getStrict();
 		Car carMock = mocker.mock(Car.class);
 		mocker.whenIntercepted(carMock.drive(METERS)).thenReturn(DRIVE_RETURN_VALUE);
