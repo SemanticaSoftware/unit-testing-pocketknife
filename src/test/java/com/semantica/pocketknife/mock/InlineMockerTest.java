@@ -2,7 +2,6 @@ package com.semantica.pocketknife.mock;
 
 import java.lang.reflect.Method;
 
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -155,7 +154,7 @@ public class InlineMockerTest {
 
 		Assert.actual(carMock.drive(METERS)).equalsExpected(DRIVE_RETURN_VALUE);
 
-		mocker.assertCalled(carMock).drive(mocker.matchArgWith(Matchers.any(int.class), int.class));
+		mocker.assertCalled(carMock).drive(mocker.matchArgWith(distance -> distance == METERS, int.class));
 		mocker.assertNoMoreMethodInvocations(carMock);
 		mocker.assertNoMoreMethodInvocationsAnywhere();
 	}

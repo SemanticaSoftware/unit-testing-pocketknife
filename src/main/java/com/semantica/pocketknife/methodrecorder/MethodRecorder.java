@@ -699,7 +699,7 @@ public class MethodRecorder<T> {
 	 *         parameterized over.
 	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz) {
-		return storeAndCreateIdInstanceOfTypeArgument(predicate, clazz, Optional.empty());
+		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(predicate, clazz, Optional.empty());
 	}
 
 	/**
@@ -732,7 +732,7 @@ public class MethodRecorder<T> {
 	 *         parameterized over.
 	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz) {
-		return storeAndCreateIdInstanceOfTypeArgument(matcher, clazz, Optional.empty());
+		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(matcher, clazz, Optional.empty());
 	}
 
 	/**
@@ -757,7 +757,8 @@ public class MethodRecorder<T> {
 	 *         parameterized over.
 	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz, int argumentNumber) {
-		return storeAndCreateIdInstanceOfTypeArgument(predicate, clazz, Optional.of(argumentNumber));
+		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(predicate, clazz,
+				Optional.of(argumentNumber));
 	}
 
 	/**
@@ -782,12 +783,17 @@ public class MethodRecorder<T> {
 	 *         parameterized over.
 	 */
 	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz, int argumentNumber) {
-		return storeAndCreateIdInstanceOfTypeArgument(matcher, clazz, Optional.of(argumentNumber));
+		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(matcher, clazz, Optional.of(argumentNumber));
 	}
 
-	protected <S> S storeAndCreateIdInstanceOfTypeArgument(Object matcher, Class<S> clazz,
+	protected <S> S storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(Object matcher, Class<S> clazz,
 			Optional<Integer> argumentNumber) {
 		S identifierValue = RandomIdentifierValues.identifierValue(clazz);
+		return storeMatcherWithIdInstanceOfTypeArgumentAsKey(matcher, clazz, argumentNumber, identifierValue);
+	}
+
+	protected <S> S storeMatcherWithIdInstanceOfTypeArgumentAsKey(Object matcher, Class<S> clazz,
+			Optional<Integer> argumentNumber, S identifierValue) {
 		Class<?> identifierClass = identifierValue.getClass();
 		Map<Object, Queue<MatchingArgument>> matchersForClass = matchers.get(identifierClass);
 		if (matchersForClass == null) {
