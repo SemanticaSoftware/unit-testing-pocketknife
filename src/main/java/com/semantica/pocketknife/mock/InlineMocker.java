@@ -15,6 +15,7 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.hamcrest.Matcher;
 
 import com.semantica.pocketknife.calls.Calls;
+import com.semantica.pocketknife.calls.CallsFactory;
 import com.semantica.pocketknife.calls.DefaultCalls;
 import com.semantica.pocketknife.calls.Invoked;
 import com.semantica.pocketknife.calls.MethodCall;
@@ -28,18 +29,12 @@ import com.semantica.pocketknife.util.Tuple;
 /**
  * Minimalistic dynamic mock creator class.
  *
- * This class was adapted and modified from
- * https://github.com/brocchini/DIY-mock
- *
- * @author A. Haanstra, M. Brocchini,
+ * @author A. Haanstra
  *
  */
-public class InlineMocker<T extends Calls<Method>> {
+public class InlineMocker {
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(InlineMocker.class);
 
-	private final Class<T> callsClass;
-	// key: the proxy (mock) instance
-	private final Map<Object, T> allCallsRegistries = new HashMap<>();
 	// key: tuple of class of delegated interface and mock instance
 	private final Map<Tuple<Class<?>, ?>, Object> delegates = new HashMap<>();
 
@@ -50,6 +45,7 @@ public class InlineMocker<T extends Calls<Method>> {
 	private final MockVerificationStore mockVerificationStore;
 	private final CapturedMatchersStore capturedMatchersStore;
 	private final InterceptionsStore interceptionsStore;
+	private final CallRegistriesStore<? extends Calls<Method>> callRegistriesStore;
 
 	private Stubber<?> stubber;
 	private AlternativeStubber<?> alternativeStubber;
@@ -61,30 +57,43 @@ public class InlineMocker<T extends Calls<Method>> {
 		STUBBING_ON_INTERCEPT, VERIFICATION_ON_INTERCEPT, MOCKING_ON_INTERCEPT;
 	}
 
+	public static interface CallRegistriesStore<T extends Calls<Method>> {
+		public <S> void newCallsRegistryFor(Object proxy);
+
+		public void removeCall(QualifiedMethodCall<Method> qualifiedMethodCall);
+
+		public void assertCalled(Invoked numberOfTimesIncomingMethodIsExpectedToBeInvoked,
+				QualifiedMethodCall<Method> qualifiedMatchingMethod);
+
+		public void registerCall(QualifiedMethodCall<Method> qualifiedMethodCall);
+
+		public void assertNoMoreMethodInvocations(Object... mocks);
+
+		public void assertNoMoreMethodInvocationsAnywhere();
+	}
+
 	public static interface InterceptionsStore {
+		public void addInterceptions(QualifiedMethodCall<Method> qualifiedMethodCall, List<Object> returnValues);
 
-		void addInterceptions(QualifiedMethodCall<Method> qualifiedMethodCall, List<Object> returnValues);
-
-		Optional<Object> matchExactMethodCallToStoredMatchingMethodCalls(
+		public Optional<Object> matchExactMethodCallToStoredMatchingMethodCalls(
 				QualifiedMethodCall<Method> qualifiedMethodCall);
-
 	}
 
 	public static interface CapturedMatchersStore {
-		public abstract Iterator<MatcherCapture<?>> getMatcherCapturesIterator();
+		public Iterator<MatcherCapture<?>> getMatcherCapturesIterator();
 
-		public abstract <T> void storeMatcherCapture(Object matcher, Class<T> clazz, Optional<Integer> argumentNumber,
+		public <T> void storeMatcherCapture(Object matcher, Class<T> clazz, Optional<Integer> argumentNumber,
 				T wiringIdentity);
 
-		public abstract void clearMatcherCaptures();
+		public void clearMatcherCaptures();
 	}
 
 	public static interface MockVerificationStore extends CapturedMatchersStore {
-		public abstract void setNumberOfTimesIncomingMethodIsExpectedToBeInvoked(Invoked timesInvoked);
+		public void setNumberOfTimesIncomingMethodIsExpectedToBeInvoked(Invoked timesInvoked);
 
-		public abstract Invoked getNumberOfTimesIncomingMethodIsExpectedToBeInvoked();
+		public Invoked getNumberOfTimesIncomingMethodIsExpectedToBeInvoked();
 
-		public abstract void clearNumberOfTimesIncomingMethodIsExpectedToBeInvoked();
+		public void clearNumberOfTimesIncomingMethodIsExpectedToBeInvoked();
 	}
 
 	/**
@@ -95,16 +104,9 @@ public class InlineMocker<T extends Calls<Method>> {
 		private static final DefaultCalls<Method> DUMMY_DEFAULT_CALLS = new DefaultMockCallsRegistry<>(Method.class);
 		private static final StrictCalls<Method> DUMMY_STRICT_CALLS = new StrictMockCallsRegistry<>(Method.class);
 
-		@SuppressWarnings("unchecked")
-		public static InlineMocker<DefaultCalls<Method>> getDefault() {
-			return new InlineMocker<>((Class<DefaultCalls<Method>>) DUMMY_DEFAULT_CALLS.getClass(),
-					mockVerificationStore(), capturedMatchersStore(), interceptionsStore());
-		}
-
-		@SuppressWarnings("unchecked")
-		public static InlineMocker<StrictCalls<Method>> getStrict() {
-			return new InlineMocker<>((Class<StrictCalls<Method>>) DUMMY_STRICT_CALLS.getClass(),
-					mockVerificationStore(), capturedMatchersStore(), interceptionsStore());
+		public static InlineMocker get(CallsFactory.CallType callType) {
+			return new InlineMocker(mockVerificationStore(), capturedMatchersStore(), interceptionsStore(),
+					callRegistriesStore(callType));
 		}
 
 		private static MockVerificationStore mockVerificationStore() {
@@ -118,14 +120,29 @@ public class InlineMocker<T extends Calls<Method>> {
 		private static InterceptionsStore interceptionsStore() {
 			return new InlineMockerInterceptionsStore();
 		}
+
+		@SuppressWarnings("unchecked")
+		private static CallRegistriesStore<? extends Calls<Method>> callRegistriesStore(
+				CallsFactory.CallType callType) {
+			switch (callType) {
+			case DEFAULT:
+				return new InlineMockerCallRegistriesStore<DefaultCalls<Method>>(
+						(Class<DefaultCalls<Method>>) DUMMY_DEFAULT_CALLS.getClass());
+			case STRICT:
+				return new InlineMockerCallRegistriesStore<StrictCalls<Method>>(
+						(Class<StrictCalls<Method>>) DUMMY_STRICT_CALLS.getClass());
+			default:
+				throw new NotImplementedException(String.format("Unknown CallType: %s.", callType));
+			}
+		}
 	}
 
-	private InlineMocker(Class<T> callsClass, MockVerificationStore mockVerificationStore,
-			CapturedMatchersStore capturedMatchersStore, InterceptionsStore interceptionsStore) {
-		this.callsClass = callsClass;
+	private InlineMocker(MockVerificationStore mockVerificationStore, CapturedMatchersStore capturedMatchersStore,
+			InterceptionsStore interceptionsStore, CallRegistriesStore<? extends Calls<Method>> callRegistriesStore) {
 		this.mockVerificationStore = mockVerificationStore;
 		this.capturedMatchersStore = capturedMatchersStore;
 		this.interceptionsStore = interceptionsStore;
+		this.callRegistriesStore = callRegistriesStore;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -135,15 +152,7 @@ public class InlineMocker<T extends Calls<Method>> {
 		if (methodRecorders.get(clazz) == null) {
 			methodRecorders.put(clazz, new MockMethodRecorder<>(clazz));
 		}
-		T calls = null;
-		if (DefaultCalls.class.isAssignableFrom(callsClass)) {
-			calls = (T) new DefaultMockCallsRegistry<>(Method.class);
-		} else if (StrictCalls.class.isAssignableFrom(callsClass)) {
-			calls = (T) new StrictMockCallsRegistry<>(Method.class);
-		} else {
-			throwNotImplementedExceptionForCallsClass();
-		}
-		allCallsRegistries.put(proxy, calls);
+		callRegistriesStore.newCallsRegistryFor(proxy);
 		return proxy;
 	}
 
@@ -153,8 +162,8 @@ public class InlineMocker<T extends Calls<Method>> {
 	}
 
 	private void undoCallRegistrationDuringUnpreparedStubbing() {
-		Calls<Method> calls = allCallsRegistries.get(stubber.getProxy());
-		calls.removeCall(stubber.getMethodCall());
+		callRegistriesStore.removeCall(stubber.getQualifiedMethodCall());
+
 	}
 
 	@SafeVarargs
@@ -185,36 +194,23 @@ public class InlineMocker<T extends Calls<Method>> {
 	}
 
 	public <S> S assertCalled(Invoked timesInvoked, S mock) {
-		if (!StrictCalls.class.isAssignableFrom(callsClass)) {
-			mockVerificationStore.setNumberOfTimesIncomingMethodIsExpectedToBeInvoked(timesInvoked);
-			InlineMocker.this.preparedProxyState = PreparedProxyState.VERIFICATION_ON_INTERCEPT;
-			return mock;
-		} else {
-			throw new NotImplementedException(
-					"Please use method \"verifyCall(S mock)\" when using strict call verification.");
-		}
+		mockVerificationStore.setNumberOfTimesIncomingMethodIsExpectedToBeInvoked(timesInvoked);
+		InlineMocker.this.preparedProxyState = PreparedProxyState.VERIFICATION_ON_INTERCEPT;
+		return mock;
 	}
 
 	public <S> S assertCalled(S mock) {
-		if (StrictCalls.class.isAssignableFrom(callsClass)) {
-			InlineMocker.this.preparedProxyState = PreparedProxyState.VERIFICATION_ON_INTERCEPT;
-			return mock;
-		} else {
-			throw new NotImplementedException(
-					"Please use method \"verifyCall(Invoked timesInvoked, S mock)\" when using non-strict call verification.");
-		}
+		return assertCalled(Invoked.ONCE, mock);
 	}
 
 	public void assertNoMoreMethodInvocations(Object... mocks) {
-		for (Object mock : mocks) {
-			assert allCallsRegistries.get(mock).verifyNoMoreMethodInvocations();
-		}
+		callRegistriesStore.assertNoMoreMethodInvocations(mocks);
+
 	}
 
 	public void assertNoMoreMethodInvocationsAnywhere() {
-		for (T calls : allCallsRegistries.values()) {
-			assert calls.verifyNoMoreMethodInvocations();
-		}
+		callRegistriesStore.assertNoMoreMethodInvocationsAnywhere();
+
 	}
 
 	private void addInterceptions(QualifiedMethodCall<Method> qualifiedMethodCall, Object returnValue,
@@ -250,11 +246,6 @@ public class InlineMocker<T extends Calls<Method>> {
 		}
 		mockVerificationStore.clearMatcherCaptures();
 		return methodRecorder;
-	}
-
-	private void throwNotImplementedExceptionForCallsClass() {
-		throw new NotImplementedException(
-				String.format("Calls class %s is unknown and not implemented for %s.", callsClass, this.getClass()));
 	}
 
 	public <S> S matchArgWith(Predicate<S> predicate, Class<S> clazz) {
@@ -314,13 +305,10 @@ public class InlineMocker<T extends Calls<Method>> {
 			return new Stubber<>(qualifiedMethodCall);
 		}
 
-		private Object getProxy() {
-			return qualifiedMethodCall.getInvokedOnInstance();
+		public QualifiedMethodCall<Method> getQualifiedMethodCall() {
+			return qualifiedMethodCall;
 		}
 
-		private MethodCall<Method> getMethodCall() {
-			return qualifiedMethodCall.getMethodCall();
-		}
 	}
 
 	public class AlternativeStubber<U> {
@@ -356,14 +344,13 @@ public class InlineMocker<T extends Calls<Method>> {
 				return proxyRelatedReturnValue.get();
 			}
 
-			T calls = allCallsRegistries.get(proxy);
 			switch (InlineMocker.this.preparedProxyState) {
 			case STUBBING_ON_INTERCEPT: // mocker.doReturn(retVal).when(mock).someMethod();
 				InlineMocker.this.preparedProxyState = PreparedProxyState.MOCKING_ON_INTERCEPT;
 				return stub(qualifiedMethodCall);
 			case VERIFICATION_ON_INTERCEPT: // mocker.assertCalled(Invoked.ONCE, mock).someMethod(someArg);
 				InlineMocker.this.preparedProxyState = PreparedProxyState.MOCKING_ON_INTERCEPT;
-				return verifyAndRemoveCall(qualifiedMethodCall, calls);
+				return verifyAndRemoveCall(qualifiedMethodCall);
 			case MOCKING_ON_INTERCEPT: // mock.someMethod();
 				// Start stubbing in case this intercept was executed as part of
 				// mocker.whenIntercepted(mock.someMethod()).thenReturn(retVal);
@@ -371,7 +358,7 @@ public class InlineMocker<T extends Calls<Method>> {
 				// Register this proxy method invocation for later verification (needs to be
 				// removed if stubbing proceeds from instantiated stubber): see
 				// mocker.whenIntercepted(..) and undoCallRegistrationDuringUnpreparedStubbing()
-				calls.registerCall(methodCall);
+				callRegistriesStore.registerCall(qualifiedMethodCall);
 				Optional<Object> stubReturnValue = executeStub(qualifiedMethodCall);
 				return stubReturnValue.orElseGet(() -> executeDelegate(qualifiedMethodCall)
 						.orElseGet(() -> DefaultValues.defaultValue(methodCall.getMethod().getReturnType())));
@@ -398,7 +385,7 @@ public class InlineMocker<T extends Calls<Method>> {
 			return DefaultValues.defaultValue(qualifiedMethodCall.getMethodCall().getMethod().getReturnType());
 		}
 
-		private Object verifyAndRemoveCall(QualifiedMethodCall<Method> qualifiedMethodCall, T calls)
+		private Object verifyAndRemoveCall(QualifiedMethodCall<Method> qualifiedMethodCall)
 				throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
 			MethodCall<Method> methodCall = qualifiedMethodCall.getMethodCall();
 			Object inlineMockerProxy = qualifiedMethodCall.getInvokedOnInstance();
@@ -410,14 +397,13 @@ public class InlineMocker<T extends Calls<Method>> {
 			// Then invoke the method on its proxy
 			MethodCall<Method> matchingMethod = methodRecorder
 					.getMethodCall(methodCall.getMethod().invoke(methodRecorder.getProxy(), methodCall.getArgs()));
-			if (DefaultCalls.class.isAssignableFrom(callsClass)) {
-				assert ((DefaultCalls<Method>) calls).verifyAndRemoveCall(
-						mockVerificationStore.getNumberOfTimesIncomingMethodIsExpectedToBeInvoked(), matchingMethod);
-			} else if (StrictCalls.class.isAssignableFrom(callsClass)) {
-				assert ((StrictCalls<Method>) calls).verifyAndRemoveCall(matchingMethod);
-			} else {
-				throwNotImplementedExceptionForCallsClass();
-			}
+
+			QualifiedMethodCall<Method> qualifiedMatchingMethod = new QualifiedMethodCall<>(inlineMockerProxy,
+					matchingMethod);
+			callRegistriesStore.assertCalled(
+					mockVerificationStore.getNumberOfTimesIncomingMethodIsExpectedToBeInvoked(),
+					qualifiedMatchingMethod);
+
 			mockVerificationStore.clearNumberOfTimesIncomingMethodIsExpectedToBeInvoked();
 			return DefaultValues.defaultValue(methodCall.getMethod().getReturnType());
 		}

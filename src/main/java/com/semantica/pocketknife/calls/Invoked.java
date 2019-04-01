@@ -1,5 +1,9 @@
 package com.semantica.pocketknife.calls;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+
 /**
  * Class supporting the fluent expression of the amount of times a method is
  * expected to have been invoked.
@@ -28,4 +32,20 @@ public class Invoked {
 	public int getTimes() {
 		return times;
 	}
+
+	@Override
+	public String toString() {
+		return ReflectionToStringBuilder.toString(this);
+	}
+
+	@Override
+	public int hashCode() {
+		return HashCodeBuilder.reflectionHashCode(this);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		return EqualsBuilder.reflectionEquals(this, other);
+	}
+
 }

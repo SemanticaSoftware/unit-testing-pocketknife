@@ -1,7 +1,5 @@
 package com.semantica.pocketknife.mock;
 
-import java.lang.reflect.Method;
-
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,9 +7,8 @@ import org.junit.jupiter.api.Test;
 import com.semantica.pocketknife.Mock;
 import com.semantica.pocketknife.MocksRegistry;
 import com.semantica.pocketknife.calls.Calls;
-import com.semantica.pocketknife.calls.DefaultCalls;
+import com.semantica.pocketknife.calls.CallsFactory.CallType;
 import com.semantica.pocketknife.calls.Invoked;
-import com.semantica.pocketknife.calls.StrictCalls;
 import com.semantica.pocketknife.mock.InlineMocker.InlineMockers;
 import com.semantica.pocketknife.util.Assert;
 
@@ -31,7 +28,7 @@ public class InlineMockerTest {
 
 	@Test
 	public void shouldVerifyMethodInvocationsStrictly() {
-		InlineMocker<StrictCalls<Method>> mocker = InlineMockers.getStrict();
+		InlineMocker mocker = InlineMockers.get(CallType.STRICT);
 		MockedInterface carMock = mocker.mock(MockedInterface.class);
 		mocker.whenIntercepted(carMock.stubbedMethod(INT_TEST_ARGUMENT)).thenReturn(DRIVE_RETURN_VALUE);
 
@@ -44,7 +41,7 @@ public class InlineMockerTest {
 
 	@Test
 	public void shouldVerifyMethodInvocationsStrictlyWithMatcher() {
-		InlineMocker<StrictCalls<Method>> mocker = InlineMockers.getStrict();
+		InlineMocker mocker = InlineMockers.get(CallType.STRICT);
 		MockedInterface carMock = mocker.mock(MockedInterface.class);
 		mocker.whenIntercepted(carMock.stubbedMethod(mocker.matchArgWith(Matchers.any(Integer.class), Integer.class)))
 				.thenReturn(DRIVE_RETURN_VALUE);
@@ -58,7 +55,7 @@ public class InlineMockerTest {
 
 	@Test
 	public void shouldReturnStubWhenArgumentMatchesMatcher() {
-		InlineMocker<StrictCalls<Method>> mocker = InlineMockers.getStrict();
+		InlineMocker mocker = InlineMockers.get(CallType.STRICT);
 		MockedInterface carMock = mocker.mock(MockedInterface.class);
 		mocker.whenIntercepted(carMock.stubbedMethod(INT_TEST_ARGUMENT)).thenReturn(DRIVE_RETURN_VALUE);
 
@@ -72,7 +69,7 @@ public class InlineMockerTest {
 
 	@Test
 	public void unverifiedmockShouldCauseVerificationToFail() {
-		InlineMocker<DefaultCalls<Method>> mocker = InlineMockers.getDefault();
+		InlineMocker mocker = InlineMockers.get(CallType.DEFAULT);
 		Calls<?> callsMock = mocker.mock(Calls.class);
 		Mock unverifiedmockMock = mocker.mock(Mock.class);
 

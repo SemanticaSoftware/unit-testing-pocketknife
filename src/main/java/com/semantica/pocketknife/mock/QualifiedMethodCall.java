@@ -1,5 +1,9 @@
 package com.semantica.pocketknife.mock;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+
 import com.semantica.pocketknife.calls.MethodCall;
 
 public class QualifiedMethodCall<T> {
@@ -21,4 +25,18 @@ public class QualifiedMethodCall<T> {
 		return methodCall;
 	}
 
+	@Override
+	public String toString() {
+		return ReflectionToStringBuilder.toString(this);
+	}
+
+	@Override
+	public int hashCode() {
+		return HashCodeBuilder.reflectionHashCode(this);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		return EqualsBuilder.reflectionEquals(this, other);
+	}
 }

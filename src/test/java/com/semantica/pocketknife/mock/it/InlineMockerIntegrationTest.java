@@ -1,12 +1,10 @@
 package com.semantica.pocketknife.mock.it;
 
-import java.lang.reflect.Method;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.semantica.pocketknife.calls.DefaultCalls;
+import com.semantica.pocketknife.calls.CallsFactory.CallType;
 import com.semantica.pocketknife.calls.Invoked;
 import com.semantica.pocketknife.calls.Return;
 import com.semantica.pocketknife.mock.InlineMocker;
@@ -35,7 +33,7 @@ public class InlineMockerIntegrationTest {
 		Assertions.assertNotNull(implementation.notStubbed());
 
 		// Create a mock, for now all methods return null
-		InlineMocker<DefaultCalls<Method>> mocker = InlineMockers.getDefault();
+		InlineMocker mocker = InlineMockers.get(CallType.DEFAULT);
 		MockedInterface carMock = mocker.mock(MockedInterface.class);
 
 		// Intercept method .drive() and make it return 'proxy roll!' (2x since the
@@ -71,7 +69,7 @@ public class InlineMockerIntegrationTest {
 		Assertions.assertNotNull(implementation.notStubbed());
 
 		// Create a mock, for now all methods return null
-		InlineMocker<DefaultCalls<Method>> mocker = InlineMockers.getDefault();
+		InlineMocker mocker = InlineMockers.get(CallType.DEFAULT);
 		MockedInterface carMock = mocker.mock(MockedInterface.class);
 
 		// Intercept method .drive() and make it return 'proxy roll!' (2x since the
@@ -102,7 +100,7 @@ public class InlineMockerIntegrationTest {
 	@Test
 	public void test2() {
 		// Create a mock, for now all methods return null
-		InlineMocker<DefaultCalls<Method>> mocker = InlineMockers.getDefault();
+		InlineMocker mocker = InlineMockers.get(CallType.DEFAULT);
 		// Original
 		Assertions.assertEquals(DRIVE_RETURN_VALUE, implementation.stubbedMethod(INT_TEST_ARGUMENT));
 		Assertions.assertNotNull(implementation.notStubbed());

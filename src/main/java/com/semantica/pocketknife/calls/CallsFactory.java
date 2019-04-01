@@ -14,7 +14,7 @@ import org.apache.commons.lang3.NotImplementedException;
 public class CallsFactory {
 
 	public enum CallType {
-		Strict, Default;
+		STRICT, DEFAULT;
 	}
 
 	/**
@@ -25,7 +25,7 @@ public class CallsFactory {
 	 *         be registered simply only passing the method arguments.
 	 */
 	public static DefaultCalls<String> getDefaultCallsUsingStrings() {
-		return (DefaultCalls<String>) getCalls(CallType.Default, String.class);
+		return (DefaultCalls<String>) getCalls(CallType.DEFAULT, String.class);
 	}
 
 	/**
@@ -37,7 +37,7 @@ public class CallsFactory {
 	 *         be registered simply only passing the method arguments.
 	 */
 	public static StrictCalls<String> getStrictCallsUsingStrings() {
-		return (StrictCalls<String>) getCalls(CallType.Strict, String.class);
+		return (StrictCalls<String>) getCalls(CallType.STRICT, String.class);
 	}
 
 	/**
@@ -50,7 +50,7 @@ public class CallsFactory {
 	 *         array of arguments.
 	 */
 	public static DefaultCalls<Method> getDefaultCalls() {
-		return (DefaultCalls<Method>) getCalls(CallType.Default, Method.class);
+		return (DefaultCalls<Method>) getCalls(CallType.DEFAULT, Method.class);
 	}
 
 	/**
@@ -63,15 +63,15 @@ public class CallsFactory {
 	 *         array of arguments.
 	 */
 	public static StrictCalls<Method> getStrictCalls() {
-		return (StrictCalls<Method>) getCalls(CallType.Strict, Method.class);
+		return (StrictCalls<Method>) getCalls(CallType.STRICT, Method.class);
 	}
 
 	/**
 	 * Factory method that allows its user to completely specify the type of Calls
 	 * object returned.
 	 *
-	 * @param callType              one of {@link CallType#Strict} or
-	 *                              {@link CallType#Default}
+	 * @param callType              one of {@link CallType#STRICT} or
+	 *                              {@link CallType#DEFAULT}
 	 * @param methodIdentifierClass The class to identify method parameters with.
 	 *                              Can be either {@link String} or {@link Method}.
 	 *                              In principle, any class might be used but is not
@@ -81,9 +81,9 @@ public class CallsFactory {
 	 */
 	public static <T> Calls<T> getCalls(CallType callType, Class<T> methodIdentifierClass) {
 		switch (callType) {
-		case Strict:
+		case STRICT:
 			return new StrictCallsRegistry<>(methodIdentifierClass);
-		case Default:
+		case DEFAULT:
 			return new CallsRegistry<>(methodIdentifierClass);
 		default:
 			throw new NotImplementedException("Unknown " + CallType.class.getSimpleName());
