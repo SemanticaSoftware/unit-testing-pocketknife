@@ -10,10 +10,10 @@ import org.hamcrest.Matcher;
 
 public class CallsUtils {
 
-	public static <T> MethodCall<T> getStoredExactMethodCall(MethodCall<T> methodCall,
-			Set<MethodCall<T>> registeredMethodCalls) {
-		final MethodCall<T> queryMethodCall = methodCall;
-		List<MethodCall<T>> matchingCalls = registeredMethodCalls.stream()
+	public static <T> MethodCall<T> getStoredExactMethodCall(MethodCall<T> methodCallWithMatchingArguments,
+			Set<MethodCall<T>> registeredExactMethodCalls) {
+		final MethodCall<T> queryMethodCall = methodCallWithMatchingArguments;
+		List<MethodCall<T>> matchingCalls = registeredExactMethodCalls.stream()
 				.filter(registeredCall -> registeredCall.getMethod().equals(queryMethodCall.getMethod()))
 				.filter(registeredCall -> registeredCall.getArgs().length == queryMethodCall.getArgs().length)
 				.filter(registeredCall -> match(registeredCall, queryMethodCall)).collect(Collectors.toList());
@@ -26,11 +26,11 @@ public class CallsUtils {
 		}
 	}
 
-	private static <T> boolean match(MethodCall<T> subject, MethodCall<T> query) {
+	public static <T> boolean match(MethodCall<T> withExactArguments, MethodCall<T> withMatchingArguments) {
 		boolean matches = true;
-		for (int i = 0; i < query.getArgs().length; i++) {
-			Object queryArg = query.getArgs()[i];
-			Object subjectArg = subject.getArgs()[i];
+		for (int i = 0; i < withMatchingArguments.getArgs().length; i++) {
+			Object queryArg = withMatchingArguments.getArgs()[i];
+			Object subjectArg = withExactArguments.getArgs()[i];
 			if (queryArg instanceof Matcher) {
 				Matcher<?> matcher = (Matcher<?>) queryArg;
 				matches &= matcher.matches(subjectArg);

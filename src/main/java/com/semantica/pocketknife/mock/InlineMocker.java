@@ -4,20 +4,17 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.function.Predicate;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.hamcrest.Matcher;
 
 import com.semantica.pocketknife.calls.Calls;
-import com.semantica.pocketknife.calls.CallsUtils;
 import com.semantica.pocketknife.calls.DefaultCalls;
 import com.semantica.pocketknife.calls.Invoked;
 import com.semantica.pocketknife.calls.MethodCall;
@@ -29,12 +26,6 @@ import com.semantica.pocketknife.util.TestUtils;
 import com.semantica.pocketknife.util.Tuple;
 
 /**
- * TODO: This class needs to be much refactored. Easier construction is needed.
- * Should create calls on construction itself. Split up intercept method. Needs
- * unit testing.
- *
- * TODO: * easier instantiation * accepting matchers
- *
  * Minimalistic dynamic mock creator class.
  *
  * This class was adapted and modified from
@@ -48,17 +39,17 @@ public class InlineMocker<T extends Calls<Method>> {
 
 	private final Class<T> callsClass;
 	// key: the proxy (mock) instance
-	private final Map<Object, Map<MethodCall<Method>, Queue<Object>>> allInterceptions = new HashMap<>();
 	private final Map<Object, T> allCallsRegistries = new HashMap<>();
 	// key: tuple of class of delegated interface and mock instance
 	private final Map<Tuple<Class<?>, ?>, Object> delegates = new HashMap<>();
 
-	// key: mock class (we just need one MethodRecorder per mock class)
 	private final Map<Object, Class<?>> proxyToMockedInterface = new HashMap<>();
+	// key: mock interface class (we just need one MethodRecorder per mock class)
 	private final Map<Class<?>, MockMethodRecorder<?>> methodRecorders = new HashMap<>();
 
 	private final MockVerificationStore mockVerificationStore;
 	private final CapturedMatchersStore capturedMatchersStore;
+	private final InterceptionsStore interceptionsStore;
 
 	private Stubber<?> stubber;
 	private AlternativeStubber<?> alternativeStubber;
@@ -68,6 +59,15 @@ public class InlineMocker<T extends Calls<Method>> {
 
 	private enum PreparedProxyState {
 		STUBBING_ON_INTERCEPT, VERIFICATION_ON_INTERCEPT, MOCKING_ON_INTERCEPT;
+	}
+
+	public static interface InterceptionsStore {
+
+		void addInterceptions(QualifiedMethodCall<Method> qualifiedMethodCall, List<Object> returnValues);
+
+		Optional<Object> matchExactMethodCallToStoredMatchingMethodCalls(
+				QualifiedMethodCall<Method> qualifiedMethodCall);
+
 	}
 
 	public static interface CapturedMatchersStore {
@@ -98,13 +98,13 @@ public class InlineMocker<T extends Calls<Method>> {
 		@SuppressWarnings("unchecked")
 		public static InlineMocker<DefaultCalls<Method>> getDefault() {
 			return new InlineMocker<>((Class<DefaultCalls<Method>>) DUMMY_DEFAULT_CALLS.getClass(),
-					mockVerificationStore(), capturedMatchersStore());
+					mockVerificationStore(), capturedMatchersStore(), interceptionsStore());
 		}
 
 		@SuppressWarnings("unchecked")
 		public static InlineMocker<StrictCalls<Method>> getStrict() {
 			return new InlineMocker<>((Class<StrictCalls<Method>>) DUMMY_STRICT_CALLS.getClass(),
-					mockVerificationStore(), capturedMatchersStore());
+					mockVerificationStore(), capturedMatchersStore(), interceptionsStore());
 		}
 
 		private static MockVerificationStore mockVerificationStore() {
@@ -114,13 +114,18 @@ public class InlineMocker<T extends Calls<Method>> {
 		private static CapturedMatchersStore capturedMatchersStore() {
 			return new InlineMockerMockStore();
 		}
+
+		private static InterceptionsStore interceptionsStore() {
+			return new InlineMockerInterceptionsStore();
+		}
 	}
 
 	private InlineMocker(Class<T> callsClass, MockVerificationStore mockVerificationStore,
-			CapturedMatchersStore capturedMatchersStore) {
+			CapturedMatchersStore capturedMatchersStore, InterceptionsStore interceptionsStore) {
 		this.callsClass = callsClass;
 		this.mockVerificationStore = mockVerificationStore;
 		this.capturedMatchersStore = capturedMatchersStore;
+		this.interceptionsStore = interceptionsStore;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -212,38 +217,30 @@ public class InlineMocker<T extends Calls<Method>> {
 		}
 	}
 
-	private void addInterceptions(Object proxy, MethodCall<Method> methodCall, Object returnValue,
+	private void addInterceptions(QualifiedMethodCall<Method> qualifiedMethodCall, Object returnValue,
 			Object... returnValues) {
-		addInterceptions(proxy, methodCall, TestUtils.toList(returnValue, returnValues));
+		addInterceptions(qualifiedMethodCall, TestUtils.toList(returnValue, returnValues));
 	}
 
-	private void addInterceptions(Object proxy, MethodCall<Method> methodCall, List<Object> returnValues) {
+	private void addInterceptions(QualifiedMethodCall<Method> qualifiedMethodCall, List<Object> returnValues) {
 		// overwrite method call with call with matchers
+		Object proxy = qualifiedMethodCall.getInvokedOnInstance();
+		MethodCall<Method> methodCall = qualifiedMethodCall.getMethodCall();
 		Iterator<MatcherCapture<?>> matcherCaptures = capturedMatchersStore.getMatcherCapturesIterator();
-		MockMethodRecorder<?> methodRecorder = setupMethodRecorderWithMatchers(proxy, methodCall, matcherCaptures);
+		MockMethodRecorder<?> methodRecorder = setupMethodRecorderWithMatchers(proxy, matcherCaptures);
 		try {
-			methodCall = methodRecorder
+			MethodCall<Method> methodCallWithMatchingArguments = methodRecorder
 					.getMethodCall(methodCall.getMethod().invoke(methodRecorder.getProxy(), methodCall.getArgs()));
+			qualifiedMethodCall = new QualifiedMethodCall<>(proxy, methodCallWithMatchingArguments);
 		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
 			throw new RuntimeException("Could not invoke method with reflection.", e);
 		}
 
-		Map<MethodCall<Method>, Queue<Object>> interceptions = allInterceptions.get(proxy);
-		if (interceptions == null) {
-			interceptions = new HashMap<>();
-			InlineMocker.this.allInterceptions.put(proxy, interceptions);
-		}
-		Queue<Object> orderedReturnValues = interceptions.get(proxy);
-		if (orderedReturnValues == null) {
-			orderedReturnValues = new ArrayDeque<>(returnValues.size());
-			interceptions.put(methodCall, orderedReturnValues);
-		}
-		for (Object returnValue : returnValues) {
-			orderedReturnValues.add(returnValue);
-		}
+		interceptionsStore.addInterceptions(qualifiedMethodCall, returnValues);
+
 	}
 
-	private MockMethodRecorder<?> setupMethodRecorderWithMatchers(Object proxy, MethodCall<Method> methodCall,
+	private MockMethodRecorder<?> setupMethodRecorderWithMatchers(Object proxy,
 			Iterator<MatcherCapture<?>> matcherCaptures) {
 		MockMethodRecorder<?> methodRecorder = methodRecorders.get(proxyToMockedInterface.get(proxy));
 		while (matcherCaptures.hasNext()) {
@@ -290,12 +287,11 @@ public class InlineMocker<T extends Calls<Method>> {
 
 	public class Stubber<U> {
 
-		private Object proxy;
-		private MethodCall<Method> methodCall;
+		private QualifiedMethodCall<Method> qualifiedMethodCall;
 
-		private Stubber(Object proxy, MethodCall<Method> methodCall) {
-			this.proxy = proxy;
-			this.methodCall = methodCall;
+		private Stubber(QualifiedMethodCall<Method> qualifiedMethodCall) {
+			super();
+			this.qualifiedMethodCall = qualifiedMethodCall;
 		}
 
 		/**
@@ -305,25 +301,25 @@ public class InlineMocker<T extends Calls<Method>> {
 		 * @param returnValues
 		 */
 		public Stubber<U> thenReturn(U returnValue, @SuppressWarnings("unchecked") U... returnValues) {
-			addInterceptions(proxy, methodCall, returnValue, returnValues);
+			addInterceptions(qualifiedMethodCall, returnValue, returnValues);
 			return this;
 		}
 
 		public Stubber<U> thenReturn(U returnValue, Return returnTimes) {
-			addInterceptions(proxy, methodCall, TestUtils.fillList(returnValue, returnTimes.getTimes()));
+			addInterceptions(qualifiedMethodCall, TestUtils.fillList(returnValue, returnTimes.getTimes()));
 			return this;
 		}
 
 		private <V> Stubber<V> typeParameterize() {
-			return new Stubber<>(proxy, methodCall);
+			return new Stubber<>(qualifiedMethodCall);
 		}
 
 		private Object getProxy() {
-			return proxy;
+			return qualifiedMethodCall.getInvokedOnInstance();
 		}
 
 		private MethodCall<Method> getMethodCall() {
-			return methodCall;
+			return qualifiedMethodCall.getMethodCall();
 		}
 	}
 
@@ -354,6 +350,7 @@ public class InlineMocker<T extends Calls<Method>> {
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			MethodCall<Method> methodCall = new MethodCall<>(method, args == null ? new Object[0] : args);
+			QualifiedMethodCall<Method> qualifiedMethodCall = new QualifiedMethodCall<>(proxy, methodCall);
 			Optional<Object> proxyRelatedReturnValue = toStringHashCodeEquals(proxy, methodCall);
 			if (proxyRelatedReturnValue.isPresent()) {
 				return proxyRelatedReturnValue.get();
@@ -363,20 +360,20 @@ public class InlineMocker<T extends Calls<Method>> {
 			switch (InlineMocker.this.preparedProxyState) {
 			case STUBBING_ON_INTERCEPT: // mocker.doReturn(retVal).when(mock).someMethod();
 				InlineMocker.this.preparedProxyState = PreparedProxyState.MOCKING_ON_INTERCEPT;
-				return stub(proxy, methodCall);
+				return stub(qualifiedMethodCall);
 			case VERIFICATION_ON_INTERCEPT: // mocker.assertCalled(Invoked.ONCE, mock).someMethod(someArg);
 				InlineMocker.this.preparedProxyState = PreparedProxyState.MOCKING_ON_INTERCEPT;
-				return verifyAndRemoveCall(proxy, methodCall, calls);
+				return verifyAndRemoveCall(qualifiedMethodCall, calls);
 			case MOCKING_ON_INTERCEPT: // mock.someMethod();
 				// Start stubbing in case this intercept was executed as part of
 				// mocker.whenIntercepted(mock.someMethod()).thenReturn(retVal);
-				stubber = new Stubber<>(proxy, methodCall);
+				stubber = new Stubber<>(qualifiedMethodCall);
 				// Register this proxy method invocation for later verification (needs to be
 				// removed if stubbing proceeds from instantiated stubber): see
 				// mocker.whenIntercepted(..) and undoCallRegistrationDuringUnpreparedStubbing()
 				calls.registerCall(methodCall);
-				Optional<Object> stubReturnValue = executeStub(proxy, methodCall);
-				return stubReturnValue.orElseGet(() -> executeDelegate(proxy, methodCall)
+				Optional<Object> stubReturnValue = executeStub(qualifiedMethodCall);
+				return stubReturnValue.orElseGet(() -> executeDelegate(qualifiedMethodCall)
 						.orElseGet(() -> DefaultValues.defaultValue(methodCall.getMethod().getReturnType())));
 			default:
 				throw new NotImplementedException(String.format("Not implemented prepared proxy state encountered: %s",
@@ -396,18 +393,20 @@ public class InlineMocker<T extends Calls<Method>> {
 			}
 		}
 
-		private Object stub(Object proxy, MethodCall<Method> methodCall) {
-			addInterceptions(proxy, methodCall, InlineMocker.this.alternativeStubber.getReturnValues());
-			return DefaultValues.defaultValue(methodCall.getMethod().getReturnType());
+		private Object stub(QualifiedMethodCall<Method> qualifiedMethodCall) {
+			addInterceptions(qualifiedMethodCall, InlineMocker.this.alternativeStubber.getReturnValues());
+			return DefaultValues.defaultValue(qualifiedMethodCall.getMethodCall().getMethod().getReturnType());
 		}
 
-		private Object verifyAndRemoveCall(Object proxy, MethodCall<Method> methodCall, T calls)
+		private Object verifyAndRemoveCall(QualifiedMethodCall<Method> qualifiedMethodCall, T calls)
 				throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+			MethodCall<Method> methodCall = qualifiedMethodCall.getMethodCall();
+			Object inlineMockerProxy = qualifiedMethodCall.getInvokedOnInstance();
 			// Invoke the caught matchingstates as if
 			// storeAndCreateIdInstanceOfTypeArgument(..) was invoked on the method recorder
 			// while a method was invoked on its proxy
 			Iterator<MatcherCapture<?>> matcherCaptures = mockVerificationStore.getMatcherCapturesIterator();
-			MockMethodRecorder<?> methodRecorder = setupMethodRecorderWithMatchers(proxy, methodCall, matcherCaptures);
+			MockMethodRecorder<?> methodRecorder = setupMethodRecorderWithMatchers(inlineMockerProxy, matcherCaptures);
 			// Then invoke the method on its proxy
 			MethodCall<Method> matchingMethod = methodRecorder
 					.getMethodCall(methodCall.getMethod().invoke(methodRecorder.getProxy(), methodCall.getArgs()));
@@ -423,23 +422,8 @@ public class InlineMocker<T extends Calls<Method>> {
 			return DefaultValues.defaultValue(methodCall.getMethod().getReturnType());
 		}
 
-		private Optional<Object> executeStub(Object proxy, MethodCall<Method> methodCall) {
-
-			// query in calls is matching method agains multiple exact methods
-			// now query in mocker is exact method agains multiple matching methods --> add
-			// MockUtils.getStoredMatchingMethodCall and call this method instead of
-			// CallsUtils.getStoredExactMethodCall(..)
-			Map<MethodCall<Method>, Queue<Object>> interceptions = allInterceptions.get(proxy);
-			MethodCall<Method> exactMethodCall = CallsUtils.getStoredExactMethodCall(methodCall,
-					interceptions.keySet());
-
-			if (interceptions != null) {
-				if (interceptions.containsKey(exactMethodCall)) {
-					Object returnValue = interceptions.get(exactMethodCall).poll();
-					return Optional.ofNullable(returnValue);
-				}
-			}
-			return Optional.empty();
+		private Optional<Object> executeStub(QualifiedMethodCall<Method> qualifiedMethodCall) {
+			return interceptionsStore.matchExactMethodCallToStoredMatchingMethodCalls(qualifiedMethodCall);
 		}
 
 		/*
@@ -450,7 +434,9 @@ public class InlineMocker<T extends Calls<Method>> {
 		 * if it has been set (not null).
 		 *
 		 */
-		private Optional<Object> executeDelegate(Object proxy, MethodCall<Method> methodCall) {
+		private Optional<Object> executeDelegate(QualifiedMethodCall<Method> qualifiedMethodCall) {
+			MethodCall<Method> methodCall = qualifiedMethodCall.getMethodCall();
+			Object proxy = qualifiedMethodCall.getInvokedOnInstance();
 			Object delegate = delegates.get(new Tuple<>(methodCall.getMethod().getDeclaringClass(), proxy));
 			if (delegate != null) {
 				try {

@@ -139,7 +139,7 @@ public class MethodRecorder<T> {
 					"Matchers not empty after substituting args with matchers for constructing new MethodCall.");
 		}
 		Object defaultValue = DefaultValues.defaultValue(method.getReturnType());
-		log.debug("Returning {} for method {} in interceptor.", defaultValue, method);
+		log.trace("Returning {} for method {} in interceptor.", defaultValue, method);
 		return defaultValue;
 	}
 
