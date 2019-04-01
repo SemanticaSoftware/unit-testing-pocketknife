@@ -46,6 +46,7 @@ public class InlineMocker {
 	private final CapturedMatchersStore capturedMatchersStore;
 	private final InterceptionsStore interceptionsStore;
 	private final CallRegistriesStore<? extends Calls<Method>> callRegistriesStore;
+	private final ExactToMatchingMethodConverter exactToMatchingMethodConverter;
 
 	private Stubber<?> stubber;
 	private AlternativeStubber<?> alternativeStubber;
@@ -55,6 +56,14 @@ public class InlineMocker {
 
 	private enum PreparedProxyState {
 		STUBBING_ON_INTERCEPT, VERIFICATION_ON_INTERCEPT, MOCKING_ON_INTERCEPT;
+	}
+
+	public interface ExactToMatchingMethodConverter {
+
+		public <S> void register(Class<S> clazz, S proxy);
+
+		public QualifiedMethodCall<Method> convert(QualifiedMethodCall<Method> qualifiedMethodCall);
+
 	}
 
 	public static interface CallRegistriesStore<T extends Calls<Method>> {
@@ -106,7 +115,7 @@ public class InlineMocker {
 
 		public static InlineMocker get(CallsFactory.CallType callType) {
 			return new InlineMocker(mockVerificationStore(), capturedMatchersStore(), interceptionsStore(),
-					callRegistriesStore(callType));
+					callRegistriesStore(callType), exactToMatchingMethodConverter());
 		}
 
 		private static MockVerificationStore mockVerificationStore() {
@@ -135,23 +144,26 @@ public class InlineMocker {
 				throw new NotImplementedException(String.format("Unknown CallType: %s.", callType));
 			}
 		}
+
+		private static ExactToMatchingMethodConverter exactToMatchingMethodConverter() {
+			return new InlineMockerMethodConverter(capturedMatchersStore());
+		}
 	}
 
 	private InlineMocker(MockVerificationStore mockVerificationStore, CapturedMatchersStore capturedMatchersStore,
-			InterceptionsStore interceptionsStore, CallRegistriesStore<? extends Calls<Method>> callRegistriesStore) {
+			InterceptionsStore interceptionsStore, CallRegistriesStore<? extends Calls<Method>> callRegistriesStore,
+			ExactToMatchingMethodConverter exactToMatchingMethodConverter) {
 		this.mockVerificationStore = mockVerificationStore;
 		this.capturedMatchersStore = capturedMatchersStore;
 		this.interceptionsStore = interceptionsStore;
 		this.callRegistriesStore = callRegistriesStore;
+		this.exactToMatchingMethodConverter = exactToMatchingMethodConverter;
 	}
 
 	@SuppressWarnings("unchecked")
 	public <S> S mock(Class<S> clazz) {
 		S proxy = (S) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { clazz }, handler);
-		proxyToMockedInterface.put(proxy, clazz);
-		if (methodRecorders.get(clazz) == null) {
-			methodRecorders.put(clazz, new MockMethodRecorder<>(clazz));
-		}
+		exactToMatchingMethodConverter.register(clazz, proxy);
 		callRegistriesStore.newCallsRegistryFor(proxy);
 		return proxy;
 	}
@@ -219,33 +231,9 @@ public class InlineMocker {
 	}
 
 	private void addInterceptions(QualifiedMethodCall<Method> qualifiedMethodCall, List<Object> returnValues) {
-		// overwrite method call with call with matchers
-		Object proxy = qualifiedMethodCall.getInvokedOnInstance();
-		MethodCall<Method> methodCall = qualifiedMethodCall.getMethodCall();
-		Iterator<MatcherCapture<?>> matcherCaptures = capturedMatchersStore.getMatcherCapturesIterator();
-		MockMethodRecorder<?> methodRecorder = setupMethodRecorderWithMatchers(proxy, matcherCaptures);
-		try {
-			MethodCall<Method> methodCallWithMatchingArguments = methodRecorder
-					.getMethodCall(methodCall.getMethod().invoke(methodRecorder.getProxy(), methodCall.getArgs()));
-			qualifiedMethodCall = new QualifiedMethodCall<>(proxy, methodCallWithMatchingArguments);
-		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-			throw new RuntimeException("Could not invoke method with reflection.", e);
-		}
-
+		qualifiedMethodCall = exactToMatchingMethodConverter.convert(qualifiedMethodCall);
 		interceptionsStore.addInterceptions(qualifiedMethodCall, returnValues);
-
-	}
-
-	private MockMethodRecorder<?> setupMethodRecorderWithMatchers(Object proxy,
-			Iterator<MatcherCapture<?>> matcherCaptures) {
-		MockMethodRecorder<?> methodRecorder = methodRecorders.get(proxyToMockedInterface.get(proxy));
-		while (matcherCaptures.hasNext()) {
-			MatcherCapture<?> matcherCapture = matcherCaptures.next();
-			methodRecorder.storeMatcherWithCastedIdInstanceOfTypeArgumentAsKey(matcherCapture.getMatcher(),
-					matcherCapture.getClazz(), matcherCapture.getArgumentNumber(), matcherCapture.getWiringIdentity());
-		}
 		mockVerificationStore.clearMatcherCaptures();
-		return methodRecorder;
 	}
 
 	public <S> S matchArgWith(Predicate<S> predicate, Class<S> clazz) {
@@ -393,13 +381,14 @@ public class InlineMocker {
 			// storeAndCreateIdInstanceOfTypeArgument(..) was invoked on the method recorder
 			// while a method was invoked on its proxy
 			Iterator<MatcherCapture<?>> matcherCaptures = mockVerificationStore.getMatcherCapturesIterator();
+
 			MockMethodRecorder<?> methodRecorder = setupMethodRecorderWithMatchers(inlineMockerProxy, matcherCaptures);
 			// Then invoke the method on its proxy
 			MethodCall<Method> matchingMethod = methodRecorder
 					.getMethodCall(methodCall.getMethod().invoke(methodRecorder.getProxy(), methodCall.getArgs()));
-
 			QualifiedMethodCall<Method> qualifiedMatchingMethod = new QualifiedMethodCall<>(inlineMockerProxy,
 					matchingMethod);
+
 			callRegistriesStore.assertCalled(
 					mockVerificationStore.getNumberOfTimesIncomingMethodIsExpectedToBeInvoked(),
 					qualifiedMatchingMethod);
