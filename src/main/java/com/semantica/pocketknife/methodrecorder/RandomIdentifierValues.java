@@ -1,18 +1,27 @@
 package com.semantica.pocketknife.methodrecorder;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 
 import org.hamcrest.Matcher;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 
-import net.sf.cglib.proxy.Callback;
-import net.sf.cglib.proxy.Enhancer;
-import net.sf.cglib.proxy.MethodInterceptor;
-import net.sf.cglib.proxy.MethodProxy;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.implementation.InvocationHandlerAdapter;
+import net.bytebuddy.implementation.bind.annotation.AllArguments;
+import net.bytebuddy.implementation.bind.annotation.Origin;
+import net.bytebuddy.implementation.bind.annotation.RuntimeType;
+import net.bytebuddy.implementation.bind.annotation.SuperCall;
+import net.bytebuddy.implementation.bind.annotation.This;
+import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * Class that generates Random or "Identifier" values that are used by
@@ -46,6 +55,7 @@ public class RandomIdentifierValues {
 	private static final Random RANDOM = new Random();
 	private static final Objenesis objenesis = new ObjenesisStd();
 	private static final Map<Integer, Class<?>> instancesOf = new HashMap<>();
+	private static final CallHandler CALL_HANDLER = new CallHandler();
 
 	/**
 	 * This method returns a new identifier value (new instance or random value)
@@ -59,9 +69,10 @@ public class RandomIdentifierValues {
 	 *
 	 * @param clazz
 	 * @return
+	 * @throws IllegalAccessException
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> T identifierValue(Class<T> clazz) {
+	public static <T> T identifierValue(Class<T> clazz) throws IllegalAccessException {
 		if (clazz.isArray()) {
 			return (T) java.lang.reflect.Array.newInstance(clazz.getComponentType(), 1);
 		} else if (clazz == Boolean.class || clazz == boolean.class) {
@@ -92,29 +103,54 @@ public class RandomIdentifierValues {
 			 * method intercepted and implemented in the intercept(..) method.
 			 */
 			Class<?> requestedClass = clazz;
-			Enhancer enhancer = new Enhancer();
-			enhancer.setUseCache(false);
-			enhancer.setSuperclass(clazz);
-			enhancer.setCallbackType(MethodInterceptor.class);
-			clazz = enhancer.createClass();
-			Enhancer.registerCallbacks(clazz, new Callback[] { (MethodInterceptor) RandomIdentifierValues::intercept });
-			T newInstance = objenesis.newInstance(clazz);
+			Class<? extends T> newClass = new ByteBuddy().subclass(clazz).method(ElementMatchers.any())
+					.intercept(InvocationHandlerAdapter.of(CALL_HANDLER)).make()
+					.load(ClassLoader.getSystemClassLoader(), ClassLoadingStrategy.UsingLookup
+							.of(MethodHandles.privateLookupIn(clazz, MethodHandles.lookup())))
+					.getLoaded();
+			T newInstance = objenesis.newInstance(newClass);
 			instancesOf.put(System.identityHashCode(newInstance), requestedClass);
 			return newInstance;
+
 		}
 	}
 
-	private static Object intercept(Object obj, java.lang.reflect.Method method, Object[] args, MethodProxy proxy)
-			throws Throwable {
-		if (method.getName().equals("hashCode") && method.getReturnType() == int.class && args.length == 0) {
-			return System.identityHashCode(obj);
-		} else if (method.getName().equals("toString") && method.getReturnType() == String.class && args.length == 0) {
-			return "Identifier dummy instance of class: " + instancesOf.get(System.identityHashCode(obj))
-					+ ", hashCode: " + System.identityHashCode(obj);
-		} else if (method.getName().equals("equals") && method.getReturnType() == boolean.class && args.length == 1) {
-			return System.identityHashCode(obj) == System.identityHashCode(args[0]);
-		} else {
-			return null;
+	private static class CallHandler implements InvocationHandler {
+
+		@Override
+		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+			if (method.getName().equals("hashCode") && method.getReturnType() == int.class && args.length == 0) {
+				return System.identityHashCode(proxy);
+			} else if (method.getName().equals("toString") && method.getReturnType() == String.class
+					&& args.length == 0) {
+				return "Identifier dummy instance of class: " + instancesOf.get(System.identityHashCode(proxy))
+						+ ", hashCode: " + System.identityHashCode(proxy);
+			} else if (method.getName().equals("equals") && method.getReturnType() == boolean.class
+					&& args.length == 1) {
+				return System.identityHashCode(proxy) == System.identityHashCode(args[0]);
+			} else {
+				return null;
+			}
+
+		}
+	}
+
+	public static class Interceptor {
+		@RuntimeType
+		public static Object intercept(@Origin Method method, @This Object self, @AllArguments Object[] args,
+				@SuperCall Callable<String> zuper) throws Exception {
+			if (method.getName().equals("hashCode") && method.getReturnType() == int.class && args.length == 0) {
+				return System.identityHashCode(self);
+			} else if (method.getName().equals("toString") && method.getReturnType() == String.class
+					&& args.length == 0) {
+				return "Identifier dummy instance of class: " + instancesOf.get(System.identityHashCode(self))
+						+ ", hashCode: " + System.identityHashCode(self);
+			} else if (method.getName().equals("equals") && method.getReturnType() == boolean.class
+					&& args.length == 1) {
+				return System.identityHashCode(self) == System.identityHashCode(args[0]);
+			} else {
+				return null;
+			}
 		}
 	}
 

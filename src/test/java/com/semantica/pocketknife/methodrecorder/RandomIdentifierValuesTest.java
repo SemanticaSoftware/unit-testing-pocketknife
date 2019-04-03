@@ -9,21 +9,21 @@ import com.semantica.pocketknife.util.MathUtil;
 public class RandomIdentifierValuesTest {
 
 	@Test
-	public void shouldNotEqualForTwoInstances() {
+	public void shouldNotEqualForTwoInstances() throws IllegalAccessException {
 		SomeClass someInstance = RandomIdentifierValues.identifierValue(SomeClass.class);
 		SomeClass otherInstance = RandomIdentifierValues.identifierValue(SomeClass.class);
 		assert !someInstance.equals(otherInstance);
 	}
 
 	@Test
-	public void shouldNotEqualForTwoArrayInstances() {
+	public void shouldNotEqualForTwoArrayInstances() throws IllegalAccessException {
 		int[] someInstance = RandomIdentifierValues.identifierValue(int[].class);
 		int[] otherInstance = RandomIdentifierValues.identifierValue(int[].class);
 		assert !someInstance.equals(otherInstance);
 	}
 
 	@Test
-	public void byteShouldBeRandomizedAsExpected() {
+	public void byteShouldBeRandomizedAsExpected() throws IllegalAccessException {
 		int length = 1000;
 		Class<?> clazz = byte.class;
 		byte[] randomChars = new byte[length];
@@ -42,7 +42,7 @@ public class RandomIdentifierValuesTest {
 	}
 
 	@Test
-	public void charShouldBeRandomizedAsExpected() {
+	public void charShouldBeRandomizedAsExpected() throws IllegalAccessException {
 		int length = 1000;
 		Class<?> clazz = char.class;
 		char[] randomChars = new char[length];
@@ -61,7 +61,7 @@ public class RandomIdentifierValuesTest {
 	}
 
 	@Test
-	public void shortShouldBeRandomizedAsExpected() {
+	public void shortShouldBeRandomizedAsExpected() throws IllegalAccessException {
 		int length = 1000;
 		Class<?> clazz = short.class;
 		short[] randomShorts = new short[length];

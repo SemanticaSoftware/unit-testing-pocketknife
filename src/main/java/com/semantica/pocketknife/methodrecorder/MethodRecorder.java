@@ -1,5 +1,6 @@
 package com.semantica.pocketknife.methodrecorder;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -16,10 +17,15 @@ import org.objenesis.ObjenesisStd;
 import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.methodrecorder.AmbiguousArgumentsUtil.AmbiguouslyDefinedMatchersException;
 
-import net.sf.cglib.proxy.Callback;
-import net.sf.cglib.proxy.Enhancer;
-import net.sf.cglib.proxy.MethodInterceptor;
-import net.sf.cglib.proxy.MethodProxy;
+import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.implementation.bind.annotation.AllArguments;
+import net.bytebuddy.implementation.bind.annotation.Origin;
+import net.bytebuddy.implementation.bind.annotation.RuntimeType;
+import net.bytebuddy.implementation.bind.annotation.SuperCall;
+import net.bytebuddy.implementation.bind.annotation.This;
+import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * A MethodRecorder can be used to record method invocations. It is initialized
@@ -50,7 +56,7 @@ public class MethodRecorder<T> {
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MethodRecorder.class);
 	private static final Objenesis OBJENESIS = new ObjenesisStd();
 	private final Class<T> recordedClass;
-	private final Class<T> proxyClass;
+	private final Class<? extends T> proxyClass;
 	private final T proxy;
 	private final Map<Class<?>, Map<Object, Queue<MatchingArgument>>> matchers = new HashMap<>();
 	private Method method;
@@ -71,17 +77,18 @@ public class MethodRecorder<T> {
 	 * the {@code recordedClass} on its proxy instance.
 	 *
 	 * @param recordedClass
+	 * @throws IllegalAccessException
 	 */
 	@SuppressWarnings("unchecked")
-	public MethodRecorder(Class<T> recordedClass) {
+	public MethodRecorder(Class<T> recordedClass) throws IllegalAccessException {
 		super();
 		this.recordedClass = recordedClass;
-		Enhancer enhancer = new Enhancer();
-		enhancer.setUseCache(false);
-		enhancer.setSuperclass(this.recordedClass);
-		enhancer.setCallbackType(MethodInterceptor.class);
-		this.proxyClass = enhancer.createClass();
-		Enhancer.registerCallbacks(proxyClass, new Callback[] { (MethodInterceptor) this::intercept });
+		this.proxyClass = new ByteBuddy().subclass(this.recordedClass).method(ElementMatchers.any())
+				.intercept(MethodDelegation.to(new Interceptor())).make()
+				.load(ClassLoader.getSystemClassLoader(),
+						ClassLoadingStrategy.UsingLookup
+								.of(MethodHandles.privateLookupIn(this.recordedClass, MethodHandles.lookup())))
+				.getLoaded();
 		this.proxy = OBJENESIS.newInstance(proxyClass);
 	}
 
@@ -90,8 +97,9 @@ public class MethodRecorder<T> {
 	 *
 	 * @param recordedClass
 	 * @return
+	 * @throws IllegalAccessException
 	 */
-	public static <T> MethodRecorder<T> recordInvocationsOn(Class<T> recordedClass) {
+	public static <T> MethodRecorder<T> recordInvocationsOn(Class<T> recordedClass) throws IllegalAccessException {
 		return new MethodRecorder<>(recordedClass);
 	}
 
@@ -101,7 +109,7 @@ public class MethodRecorder<T> {
 	 *
 	 * @return The proxy superclass
 	 */
-	public Class<T> getRecordedClass() {
+	public Class<? extends T> getRecordedClass() {
 		return recordedClass;
 	}
 
@@ -114,33 +122,36 @@ public class MethodRecorder<T> {
 		return proxy;
 	}
 
-	/**
-	 * Method interceptor that does not call back any method on the superclass but
-	 * simply registers the method call and returns a default value for the return
-	 * type.
-	 *
-	 * @param obj    This proxy
-	 * @param method The invoked method
-	 * @param args   The arguments with which the method was invoked
-	 * @param proxy  Can be used for any callbacks to the original method on an
-	 *               instance of the proxy's superclass
-	 * @return Return value for the intercepted method
-	 * @throws Throwable
-	 */
-	public Object intercept(Object obj, java.lang.reflect.Method method, Object[] args, MethodProxy proxy)
-			throws Throwable {
-		AmbiguousArgumentsUtil.checkForIdentifierAmbiguity(args, matchers);
-		this.method = method;
-		this.methodCall = new MethodCall<>(method, substituteWithMatchingArgs(args));
-		this.captureNumber = 0;
-		this.captureProcessedNumber = 0;
-		if (!this.matchers.isEmpty()) {
-			throw new IllegalStateException(
-					"Matchers not empty after substituting args with matchers for constructing new MethodCall.");
+	public class Interceptor {
+		/**
+		 * Method interceptor that does not call back any method on the superclass but
+		 * simply registers the method call and returns a default value for the return
+		 * type.
+		 *
+		 * @param method The invoked method
+		 * @param self   This proxy
+		 * @param args   The arguments with which the method was invoked
+		 * @param zuper  Can be used for any callbacks to the original method on an
+		 *               instance of the proxy's superclass
+		 * @return Return value for the intercepted method
+		 * @throws Throwable
+		 */
+		@RuntimeType
+		public Object intercept(@Origin Method method, @This Object self, @AllArguments Object[] args,
+				@SuperCall Callable<String> zuper) throws Exception {
+			AmbiguousArgumentsUtil.checkForIdentifierAmbiguity(args, matchers);
+			MethodRecorder.this.method = method;
+			MethodRecorder.this.methodCall = new MethodCall<>(method, substituteWithMatchingArgs(args));
+			MethodRecorder.this.captureNumber = 0;
+			MethodRecorder.this.captureProcessedNumber = 0;
+			if (!MethodRecorder.this.matchers.isEmpty()) {
+				throw new IllegalStateException(
+						"Matchers not empty after substituting args with matchers for constructing new MethodCall.");
+			}
+			Object defaultValue = DefaultValues.defaultValue(method.getReturnType());
+			log.trace("Returning {} for method {} in interceptor.", defaultValue, method);
+			return defaultValue;
 		}
-		Object defaultValue = DefaultValues.defaultValue(method.getReturnType());
-		log.trace("Returning {} for method {} in interceptor.", defaultValue, method);
-		return defaultValue;
 	}
 
 	/**
@@ -697,8 +708,10 @@ public class MethodRecorder<T> {
 	 *                  retrieved at runtime from the Matcher).
 	 * @return An identifying value of the same type as the {@code predicate} is
 	 *         parameterized over.
+	 * @throws IllegalAccessException
 	 */
-	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz) {
+	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz)
+			throws IllegalAccessException {
 		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(predicate, clazz, Optional.empty());
 	}
 
@@ -730,8 +743,10 @@ public class MethodRecorder<T> {
 	 *                retrieved at runtime from the Matcher).
 	 * @return An identifying value of the same type as the {@code matcher} is
 	 *         parameterized over.
+	 * @throws IllegalAccessException
 	 */
-	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz) {
+	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz)
+			throws IllegalAccessException {
 		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(matcher, clazz, Optional.empty());
 	}
 
@@ -755,8 +770,10 @@ public class MethodRecorder<T> {
 	 *                       call counted from left to right and starting at 0.
 	 * @return An identifying value of the same type as the {@code predicate} is
 	 *         parameterized over.
+	 * @throws IllegalAccessException
 	 */
-	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz, int argumentNumber) {
+	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz, int argumentNumber)
+			throws IllegalAccessException {
 		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(predicate, clazz,
 				Optional.of(argumentNumber));
 	}
@@ -781,13 +798,15 @@ public class MethodRecorder<T> {
 	 *                       call counted from left to right and starting at 0.
 	 * @return An identifying value of the same type as the {@code matcher} is
 	 *         parameterized over.
+	 * @throws IllegalAccessException
 	 */
-	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz, int argumentNumber) {
+	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz, int argumentNumber)
+			throws IllegalAccessException {
 		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(matcher, clazz, Optional.of(argumentNumber));
 	}
 
 	protected <S> S storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(Object matcher, Class<S> clazz,
-			Optional<Integer> argumentNumber) {
+			Optional<Integer> argumentNumber) throws IllegalAccessException {
 		S identifierValue = RandomIdentifierValues.identifierValue(clazz);
 		return storeMatcherWithIdInstanceOfTypeArgumentAsKey(matcher, clazz, argumentNumber, identifierValue);
 	}
