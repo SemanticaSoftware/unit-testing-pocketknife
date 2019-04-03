@@ -9,7 +9,6 @@ import com.semantica.pocketknife.MocksRegistry;
 import com.semantica.pocketknife.calls.Calls;
 import com.semantica.pocketknife.calls.CallsFactory.CallType;
 import com.semantica.pocketknife.calls.Invoked;
-import com.semantica.pocketknife.mock.InlineMocker.InlineMockers;
 import com.semantica.pocketknife.util.Assert;
 
 public class InlineMockerTest {

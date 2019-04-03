@@ -8,7 +8,7 @@ import com.semantica.pocketknife.calls.CallsFactory.CallType;
 import com.semantica.pocketknife.calls.Invoked;
 import com.semantica.pocketknife.calls.Return;
 import com.semantica.pocketknife.mock.InlineMocker;
-import com.semantica.pocketknife.mock.InlineMocker.InlineMockers;
+import com.semantica.pocketknife.mock.InlineMockers;
 import com.semantica.pocketknife.mock.MockedInterface;
 import com.semantica.pocketknife.mock.MockedInterfaceImplementation;
 

@@ -1,4 +1,4 @@
-package com.semantica.pocketknife.mock;
+package com.semantica.pocketknife.mock.service;
 
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
@@ -9,8 +9,11 @@ import java.util.Optional;
 import java.util.Queue;
 
 import com.semantica.pocketknife.calls.MethodCall;
+import com.semantica.pocketknife.mock.InterceptionsStore;
+import com.semantica.pocketknife.mock.MockUtils;
+import com.semantica.pocketknife.mock.dto.QualifiedMethodCall;
 
-public class InlineMockerInterceptionsStore implements InlineMocker.InterceptionsStore {
+public class InlineMockerInterceptionsStore implements InterceptionsStore {
 
 	// key: the proxy (mock) instance
 	private final Map<Object, Map<MethodCall<Method>, Queue<Object>>> allInterceptions = new HashMap<>();

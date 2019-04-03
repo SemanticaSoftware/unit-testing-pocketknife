@@ -1,4 +1,4 @@
-package com.semantica.pocketknife.mock;
+package com.semantica.pocketknife.mock.dto;
 
 import java.util.Optional;
 

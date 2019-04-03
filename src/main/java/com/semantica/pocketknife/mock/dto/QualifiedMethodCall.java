@@ -1,4 +1,4 @@
-package com.semantica.pocketknife.mock;
+package com.semantica.pocketknife.mock.dto;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;

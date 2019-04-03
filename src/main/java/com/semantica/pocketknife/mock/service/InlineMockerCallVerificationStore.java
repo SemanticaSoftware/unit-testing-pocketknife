@@ -1,4 +1,4 @@
-package com.semantica.pocketknife.mock;
+package com.semantica.pocketknife.mock.service;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -11,18 +11,31 @@ import com.semantica.pocketknife.calls.DefaultCalls;
 import com.semantica.pocketknife.calls.Invoked;
 import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.calls.StrictCalls;
+import com.semantica.pocketknife.mock.VerificationStore;
+import com.semantica.pocketknife.mock.dto.QualifiedMethodCall;
+import com.semantica.pocketknife.mock.service.support.components.DynamicMockingCallsRegistry;
+import com.semantica.pocketknife.mock.service.support.components.DynamicMockingtrictCallsRegistry;
 
-public class InlineMockerCallRegistriesStore<T extends Calls<Method>> implements InlineMocker.CallRegistriesStore<T> {
+public class InlineMockerCallVerificationStore<T extends Calls<Method>>
+		implements VerificationStore<T> {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory
-			.getLogger(InlineMockerCallRegistriesStore.class);
+			.getLogger(InlineMockerCallVerificationStore.class);
 	// key: the proxy (mock) instance
 	private final Map<Object, T> allCallsRegistries = new HashMap<>();
 	private final Class<T> callsClass;
+	private final InvocationStore mockVerificationStore;
 
-	public InlineMockerCallRegistriesStore(Class<T> callsClass) {
+	public static interface InvocationStore {
+		public void addNumberOfTimesIncomingMethodIsExpectedToBeInvoked(Invoked timesInvoked);
+
+		public Invoked removeNumberOfTimesIncomingMethodIsExpectedToBeInvoked();
+	}
+
+	public InlineMockerCallVerificationStore(Class<T> callsClass, InvocationStore mockVerificationStore) {
 		super();
 		this.callsClass = callsClass;
+		this.mockVerificationStore = mockVerificationStore;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -30,9 +43,9 @@ public class InlineMockerCallRegistriesStore<T extends Calls<Method>> implements
 	public void newCallsRegistryFor(Object proxy) {
 		T calls = null;
 		if (DefaultCalls.class.isAssignableFrom(callsClass)) {
-			calls = (T) new DefaultMockCallsRegistry<>(Method.class);
+			calls = (T) new DynamicMockingCallsRegistry<>(Method.class);
 		} else if (StrictCalls.class.isAssignableFrom(callsClass)) {
-			calls = (T) new StrictMockCallsRegistry<>(Method.class);
+			calls = (T) new DynamicMockingtrictCallsRegistry<>(Method.class);
 		} else {
 			throwNotImplementedExceptionForCallsClass();
 		}
@@ -51,8 +64,9 @@ public class InlineMockerCallRegistriesStore<T extends Calls<Method>> implements
 	}
 
 	@Override
-	public void assertCalled(Invoked numberOfTimesIncomingMethodIsExpectedToBeInvoked,
-			QualifiedMethodCall<Method> qualifiedMatchingMethod) {
+	public void assertCalled(QualifiedMethodCall<Method> qualifiedMatchingMethod) {
+		Invoked numberOfTimesIncomingMethodIsExpectedToBeInvoked = mockVerificationStore
+				.removeNumberOfTimesIncomingMethodIsExpectedToBeInvoked();
 		MethodCall<Method> matchingMethod = qualifiedMatchingMethod.getMethodCall();
 		T calls = allCallsRegistries.get(qualifiedMatchingMethod.getInvokedOnInstance());
 		if (DefaultCalls.class.isAssignableFrom(callsClass)) {
@@ -92,6 +106,11 @@ public class InlineMockerCallRegistriesStore<T extends Calls<Method>> implements
 		for (T calls : allCallsRegistries.values()) {
 			assert calls.verifyNoMoreMethodInvocations();
 		}
+	}
+
+	@Override
+	public void addNumberOfTimesIncomingMethodIsExpectedToBeInvoked(Invoked timesInvoked) {
+		mockVerificationStore.addNumberOfTimesIncomingMethodIsExpectedToBeInvoked(timesInvoked);
 	}
 
 }

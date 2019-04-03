@@ -1,12 +1,12 @@
-package com.semantica.pocketknife.mock;
+package com.semantica.pocketknife.mock.service.support.components;
 
-import com.semantica.pocketknife.calls.CallsRegistry;
 import com.semantica.pocketknife.calls.MethodCall;
+import com.semantica.pocketknife.calls.StrictCallsRegistry;
 import com.semantica.pocketknife.util.TestUtils;
 
-class DefaultMockCallsRegistry<T> extends CallsRegistry<T> {
+public class DynamicMockingtrictCallsRegistry<T> extends StrictCallsRegistry<T> {
 
-	DefaultMockCallsRegistry(Class<T> methodClass) {
+	public DynamicMockingtrictCallsRegistry(Class<T> methodClass) {
 		super(methodClass);
 	}
 
@@ -36,4 +36,5 @@ class DefaultMockCallsRegistry<T> extends CallsRegistry<T> {
 		requireNonNull(methodCall.getArgs());
 		addStackTraceToCalls(methodCall, TestUtils.getTruncatedStackTrace(2));
 	}
+
 }

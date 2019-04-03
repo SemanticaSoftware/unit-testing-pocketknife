@@ -1,21 +1,16 @@
-package com.semantica.pocketknife.mock;
+package com.semantica.pocketknife.mock.service.support.components;
 
 import java.util.Optional;
 
 import com.semantica.pocketknife.methodrecorder.MethodRecorder;
 
-public class MockMethodRecorder<T> extends MethodRecorder<T> {
+public class DynamicMockingMethodRecorder<T> extends MethodRecorder<T> {
 
-	public MockMethodRecorder(Class<T> recordedClass) {
+	public DynamicMockingMethodRecorder(Class<T> recordedClass) {
 		super(recordedClass);
 	}
 
-//	protected <S> S storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(Object matcher, Class<S> clazz,
-//			Optional<Integer> argumentNumber) {
-//		return super.storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(matcher, clazz, argumentNumber);
-//	}
-
-	protected <S> S storeMatcherWithCastedIdInstanceOfTypeArgumentAsKey(Object matcher, Class<S> clazz,
+	public <S> S storeMatcherWithCastedIdInstanceOfTypeArgumentAsKey(Object matcher, Class<S> clazz,
 			Optional<Integer> argumentNumber, Object identifierValue) {
 		S typedIdentifierValue = wrapperClassForPrimitiveClasses(clazz).cast(identifierValue);
 		return super.storeMatcherWithIdInstanceOfTypeArgumentAsKey(matcher, clazz, argumentNumber,

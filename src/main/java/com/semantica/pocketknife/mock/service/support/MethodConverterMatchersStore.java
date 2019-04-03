@@ -1,35 +1,21 @@
-package com.semantica.pocketknife.mock;
+package com.semantica.pocketknife.mock.service.support;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 
-import com.semantica.pocketknife.calls.Invoked;
+import com.semantica.pocketknife.mock.dto.MatcherCapture;
+import com.semantica.pocketknife.mock.service.InlineMockerMethodConverter;
+import com.semantica.pocketknife.mock.service.InlineMockerMethodConverter.CapturedMatchersStore;
 
-public class InlineMockerMockStore implements InlineMocker.CapturedMatchersStore, InlineMocker.MockVerificationStore {
+public class MethodConverterMatchersStore implements InlineMockerMethodConverter.CapturedMatchersStore {
 
-	private Invoked timesInvoked;
 	private List<MatcherCapture<?>> matcherCaptures;
 
-	public InlineMockerMockStore() {
+	public MethodConverterMatchersStore() {
 		super();
 		matcherCaptures = new ArrayList<>();
-	}
-
-	@Override
-	public void setNumberOfTimesIncomingMethodIsExpectedToBeInvoked(Invoked timesInvoked) {
-		this.timesInvoked = timesInvoked;
-	}
-
-	@Override
-	public Invoked getNumberOfTimesIncomingMethodIsExpectedToBeInvoked() {
-		return timesInvoked;
-	}
-
-	@Override
-	public void clearNumberOfTimesIncomingMethodIsExpectedToBeInvoked() {
-		timesInvoked = null;
 	}
 
 	@Override
