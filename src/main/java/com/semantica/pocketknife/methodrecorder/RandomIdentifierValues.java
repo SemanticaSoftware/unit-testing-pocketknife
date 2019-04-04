@@ -1,6 +1,5 @@
 package com.semantica.pocketknife.methodrecorder;
 
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -12,6 +11,9 @@ import java.util.function.Predicate;
 import org.hamcrest.Matcher;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
+
+import com.semantica.pocketknife.methodrecorder.dynamicproxies.ClassLoadingStrategyFinder;
+import com.semantica.pocketknife.methodrecorder.dynamicproxies.Dummy;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -98,19 +100,14 @@ public class RandomIdentifierValues {
 			 * method intercepted and implemented in the intercept(..) method.
 			 */
 			Class<?> requestedClass = clazz;
-			Class<? extends T> newClass;
-			try {
-				newClass = new ByteBuddy().subclass(clazz)
-						.name(RandomIdentifierValues.class.getPackage().getName() + "." + clazz.getSimpleName()
-								+ "IdentifyingProxy" + "_" + UUID.randomUUID().toString().replaceAll("-", ""))
-						.method(ElementMatchers.any()).intercept(InvocationHandlerAdapter.of(CALL_HANDLER)).make()
-						.load(ClassLoader.getSystemClassLoader(),
-								ClassLoadingStrategy.UsingLookup.of(MethodHandles
-										.privateLookupIn(RandomIdentifierValues.class, MethodHandles.lookup())))
-						.getLoaded();
-			} catch (IllegalAccessException e) {
-				throw new FatalTestException(String.format("Could not create subclass of class \"%s\".", clazz), e);
-			}
+			Class<?> classInTargetPackage = Dummy.class;
+			ClassLoadingStrategy<ClassLoader> strategy = ClassLoadingStrategyFinder
+					.getClassLoadingStrategyToDefineClassInSamePackageAs(classInTargetPackage);
+			Class<? extends T> newClass = new ByteBuddy().subclass(clazz)
+					.name(classInTargetPackage.getPackage().getName() + "." + clazz.getSimpleName() + "IdentifyingProxy"
+							+ "_" + UUID.randomUUID().toString().replaceAll("-", ""))
+					.method(ElementMatchers.any()).intercept(InvocationHandlerAdapter.of(CALL_HANDLER)).make()
+					.load(classInTargetPackage.getClassLoader(), strategy).getLoaded();
 			T newInstance = objenesis.newInstance(newClass);
 			instancesOf.put(System.identityHashCode(newInstance), requestedClass);
 			return newInstance;

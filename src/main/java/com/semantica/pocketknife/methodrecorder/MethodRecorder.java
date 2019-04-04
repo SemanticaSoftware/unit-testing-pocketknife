@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 
@@ -72,15 +73,22 @@ public class MethodRecorder<T> {
 	 * @throws IllegalAccessException
 	 */
 	@SuppressWarnings("unchecked")
-	public MethodRecorder(Class<T> recordedClass) throws IllegalAccessException {
+	public MethodRecorder(Class<T> recordedClass) {
 		super();
 		this.recordedClass = recordedClass;
-		this.proxyClass = new ByteBuddy().subclass(this.recordedClass).method(ElementMatchers.any())
-				.intercept(MethodDelegation.to(new Interceptor())).make()
-				.load(ClassLoader.getSystemClassLoader(),
-						ClassLoadingStrategy.UsingLookup
-								.of(MethodHandles.privateLookupIn(this.recordedClass, MethodHandles.lookup())))
-				.getLoaded();
+		Class<? extends T> newClass;
+		try {
+			this.proxyClass = new ByteBuddy().subclass(recordedClass)
+					.name(this.getClass().getPackage().getName() + "." + recordedClass.getSimpleName()
+							+ "MethodRecorderProxy" + "_" + UUID.randomUUID().toString().replaceAll("-", ""))
+					.method(ElementMatchers.any()).intercept(MethodDelegation.to(new Interceptor())).make()
+					.load(this.getClass().getClassLoader(),
+							ClassLoadingStrategy.UsingLookup
+									.of(MethodHandles.privateLookupIn(this.getClass(), MethodHandles.lookup())))
+					.getLoaded();
+		} catch (IllegalAccessException e) {
+			throw new FatalTestException(String.format("Could not create subclass of class \"%s\".", recordedClass), e);
+		}
 		this.proxy = OBJENESIS.newInstance(proxyClass);
 	}
 
@@ -91,7 +99,7 @@ public class MethodRecorder<T> {
 	 * @return
 	 * @throws IllegalAccessException
 	 */
-	public static <T> MethodRecorder<T> recordInvocationsOn(Class<T> recordedClass) throws IllegalAccessException {
+	public static <T> MethodRecorder<T> recordInvocationsOn(Class<T> recordedClass) {
 		return new MethodRecorder<>(recordedClass);
 	}
 
@@ -702,8 +710,7 @@ public class MethodRecorder<T> {
 	 *         parameterized over.
 	 * @throws IllegalAccessException
 	 */
-	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz)
-			throws IllegalAccessException {
+	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz) {
 		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(predicate, clazz, Optional.empty());
 	}
 
@@ -737,8 +744,7 @@ public class MethodRecorder<T> {
 	 *         parameterized over.
 	 * @throws IllegalAccessException
 	 */
-	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz)
-			throws IllegalAccessException {
+	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz) {
 		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(matcher, clazz, Optional.empty());
 	}
 
@@ -764,8 +770,7 @@ public class MethodRecorder<T> {
 	 *         parameterized over.
 	 * @throws IllegalAccessException
 	 */
-	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz, int argumentNumber)
-			throws IllegalAccessException {
+	public <S> S storeAndCreateIdInstanceOfTypeArgument(Predicate<S> predicate, Class<S> clazz, int argumentNumber) {
 		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(predicate, clazz,
 				Optional.of(argumentNumber));
 	}
@@ -792,13 +797,12 @@ public class MethodRecorder<T> {
 	 *         parameterized over.
 	 * @throws IllegalAccessException
 	 */
-	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz, int argumentNumber)
-			throws IllegalAccessException {
+	public <S> S storeAndCreateIdInstanceOfTypeArgument(Matcher<S> matcher, Class<S> clazz, int argumentNumber) {
 		return storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(matcher, clazz, Optional.of(argumentNumber));
 	}
 
 	protected <S> S storeMatcherAndCreateIdInstanceOfTypeArgumentAsKeyToMatcher(Object matcher, Class<S> clazz,
-			Optional<Integer> argumentNumber) throws IllegalAccessException {
+			Optional<Integer> argumentNumber) {
 		S identifierValue = RandomIdentifierValues.identifierValue(clazz);
 		return storeMatcherWithIdInstanceOfTypeArgumentAsKey(matcher, clazz, argumentNumber, identifierValue);
 	}

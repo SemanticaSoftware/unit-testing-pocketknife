@@ -73,7 +73,7 @@ public class MethodRecorderTest {
 	MethodRecorder<Methods> methodRecorder;
 
 	@BeforeEach
-	public void setup() throws IllegalAccessException {
+	public void setup() {
 		methodRecorder = new MethodRecorder<>(Methods.class);
 	}
 
@@ -158,8 +158,7 @@ public class MethodRecorderTest {
 	}
 
 	@Test
-	public void shouldRecordVoidMethodInvocationFluently_MethodName()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+	public void shouldRecordVoidMethodInvocationFluently_MethodName() throws NoSuchMethodException, SecurityException {
 		MethodRecorder<Methods> methodRecorder = MethodRecorder.recordInvocationsOn(Methods.class);
 		assert methodRecorder.getMethodName(() -> methodRecorder.getProxy().voidMethod()).equals("voidMethod");
 	}
@@ -171,8 +170,7 @@ public class MethodRecorderTest {
 	}
 
 	@Test
-	public void allStateShouldBeResetAfterCallToReset()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+	public void allStateShouldBeResetAfterCallToReset() throws NoSuchMethodException, SecurityException {
 		methodRecorder = new MethodRecorder<>(Methods.class);
 		int hashAfterConstruction = methodRecorder.hashCode();
 		assert methodRecorder.getMethod(() -> methodRecorder.getProxy().voidMethod())
@@ -210,8 +208,7 @@ public class MethodRecorderTest {
 	}
 
 	@Test
-	public void shouldRecordMatcherArgumentWithProxyInvocation()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+	public void shouldRecordMatcherArgumentWithProxyInvocation() throws NoSuchMethodException, SecurityException {
 		int randomIntermediateIdentifier = 0;
 		Matcher<Integer> matcher = Matchers.any(int.class); // ! Hamcrest matchers do not implement equals(Object obj)
 		assert methodRecorder
@@ -223,8 +220,7 @@ public class MethodRecorderTest {
 	}
 
 	@Test
-	public void shouldRecordPredicateArgumentWithProxyInvocation()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+	public void shouldRecordPredicateArgumentWithProxyInvocation() throws NoSuchMethodException, SecurityException {
 		int randomIntermediateIdentifier = 0;
 		Predicate<Integer> intPredicate = integer -> integer == 5;
 		assert methodRecorder
@@ -266,7 +262,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void shouldNotThrowAmbiguouslyDefinedMatchersExceptionForFalseNextToBooleanMatcherIfMatcherArgumentPositionSpecified()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		Matcher<Boolean> matcher = Matchers.any(boolean.class);
 		assert methodRecorder
 				.getMethodCall(methodRecorder.getProxy().twoParameters(false,
@@ -277,7 +273,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void shouldNotThrowAmbiguouslyDefinedMatchersExceptionForFalseNextToBooleanPredicateIfPredicateArgumentPositionSpecified()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		Predicate<Boolean> booleanPredicate = bool -> bool;
 		assert methodRecorder
 				.getMethodCall(methodRecorder.getProxy().twoParameters(false,
@@ -298,7 +294,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void shouldNotThrowAmbiguouslyDefinedMatchersExceptionWhenAllMatcherArgumentPositionsAreSpecified()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		Matcher<Boolean> matcher = Matchers.any(boolean.class);
 		assert methodRecorder
 				.getMethodCall(methodRecorder.getProxy().threeParameters(false,
@@ -311,7 +307,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void shouldNotThrowAmbiguouslyDefinedMatchersExceptionWhenAllArgumentsForTypesWithMatchersAreMatchers()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		Matcher<Boolean> matcher = Matchers.any(boolean.class);
 		assert methodRecorder
 				.getMethodCall(methodRecorder.getProxy().fourParameters(
@@ -324,7 +320,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void shouldNotThrowAmbiguouslyDefinedMatchersExceptionForIntegerValueNextToIntegerMatcher()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		Matcher<Integer> matcher = Matchers.any(int.class);
 		assert methodRecorder
 				.getMethodCall(methodRecorder.getProxy().twoParameters(11,
@@ -346,7 +342,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void shouldThrowAmbiguouslyDefinedMatchersExceptionOnlyForBooleanTypes_Test2of2()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		Matcher<Boolean> booleanMatcher = Matchers.any(boolean.class);
 		Matcher<Integer> intMatcher = Matchers.any(int.class);
 		methodRecorder
@@ -361,7 +357,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void forAllPossibleReferenceTypesRandomIdentifierValuesShouldBeGenerated()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		Matcher<SomeClass> someClassMatcher = Matchers.any(SomeClass.class); // class defined in same package
 		Matcher<Object> objectMatcher = Matchers.any(Object.class); // object reference, not wrapper
 		Matcher<Object[]> objectArrayMatcher = Matchers.any(Object[].class);
@@ -410,7 +406,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void forNonWrapperFinalClassesIllegalArgumentExceptionShouldBeThrown()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		@SuppressWarnings("rawtypes")
 		Matcher<Class> classMatcher = Matchers.any(Class.class);
 		Assertions.assertThrows(IllegalArgumentException.class, () -> executeMethodRecorderCapture(classMatcher));
@@ -428,7 +424,7 @@ public class MethodRecorderTest {
 
 	@Test
 	public void forObjectReferenceTypesRandomIdentifierValuesShouldBeGenerated()
-			throws NoSuchMethodException, SecurityException, IllegalAccessException {
+			throws NoSuchMethodException, SecurityException {
 		Matcher<Object> objectMatcher = Matchers.any(Object.class); // object reference, not wrapper
 		Assertions.assertEquals(new MethodCall<>(Methods.class.getMethod("oneParameter", Object.class), objectMatcher),
 				methodRecorder.getMethodCall(() -> methodRecorder.getProxy().oneParameter(
