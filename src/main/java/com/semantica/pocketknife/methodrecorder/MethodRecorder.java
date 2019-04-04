@@ -64,14 +64,6 @@ public class MethodRecorder<T> {
 	private int captureNumber = 0;
 	private int captureProcessedNumber = 0;
 
-	static class FatalTestException extends RuntimeException {
-		private static final long serialVersionUID = 1L;
-
-		public FatalTestException(Throwable cause) {
-			super(cause);
-		}
-	}
-
 	/**
 	 * Constructs a MethodRecorder instance that can record method invocations for
 	 * the {@code recordedClass} on its proxy instance.

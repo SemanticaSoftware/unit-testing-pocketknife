@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.Callable;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import org.hamcrest.Matcher;
@@ -16,11 +16,6 @@ import org.objenesis.ObjenesisStd;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.InvocationHandlerAdapter;
-import net.bytebuddy.implementation.bind.annotation.AllArguments;
-import net.bytebuddy.implementation.bind.annotation.Origin;
-import net.bytebuddy.implementation.bind.annotation.RuntimeType;
-import net.bytebuddy.implementation.bind.annotation.SuperCall;
-import net.bytebuddy.implementation.bind.annotation.This;
 import net.bytebuddy.matcher.ElementMatchers;
 
 /**
@@ -72,7 +67,7 @@ public class RandomIdentifierValues {
 	 * @throws IllegalAccessException
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> T identifierValue(Class<T> clazz) throws IllegalAccessException {
+	public static <T> T identifierValue(Class<T> clazz) {
 		if (clazz.isArray()) {
 			return (T) java.lang.reflect.Array.newInstance(clazz.getComponentType(), 1);
 		} else if (clazz == Boolean.class || clazz == boolean.class) {
@@ -103,51 +98,36 @@ public class RandomIdentifierValues {
 			 * method intercepted and implemented in the intercept(..) method.
 			 */
 			Class<?> requestedClass = clazz;
-			Class<? extends T> newClass = new ByteBuddy().subclass(clazz).method(ElementMatchers.any())
-					.intercept(InvocationHandlerAdapter.of(CALL_HANDLER)).make()
-					.load(ClassLoader.getSystemClassLoader(), ClassLoadingStrategy.UsingLookup
-							.of(MethodHandles.privateLookupIn(clazz, MethodHandles.lookup())))
-					.getLoaded();
+			Class<? extends T> newClass;
+			try {
+				newClass = new ByteBuddy().subclass(clazz)
+						.name(RandomIdentifierValues.class.getPackage().getName() + "." + clazz.getSimpleName()
+								+ "IdentifyingProxy" + "_" + UUID.randomUUID().toString().replaceAll("-", ""))
+						.method(ElementMatchers.any()).intercept(InvocationHandlerAdapter.of(CALL_HANDLER)).make()
+						.load(ClassLoader.getSystemClassLoader(),
+								ClassLoadingStrategy.UsingLookup.of(MethodHandles
+										.privateLookupIn(RandomIdentifierValues.class, MethodHandles.lookup())))
+						.getLoaded();
+			} catch (IllegalAccessException e) {
+				throw new FatalTestException(String.format("Could not create subclass of class \"%s\".", clazz), e);
+			}
 			T newInstance = objenesis.newInstance(newClass);
 			instancesOf.put(System.identityHashCode(newInstance), requestedClass);
 			return newInstance;
-
 		}
 	}
 
 	private static class CallHandler implements InvocationHandler {
-
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-			if (method.getName().equals("hashCode") && method.getReturnType() == int.class && args.length == 0) {
+			if (method.getName().equals("hashCode") && args.length == 0) {
 				return System.identityHashCode(proxy);
-			} else if (method.getName().equals("toString") && method.getReturnType() == String.class
-					&& args.length == 0) {
+			} else if (method.getName().equals("toString") && args.length == 0) {
 				return "Identifier dummy instance of class: " + instancesOf.get(System.identityHashCode(proxy))
 						+ ", hashCode: " + System.identityHashCode(proxy);
-			} else if (method.getName().equals("equals") && method.getReturnType() == boolean.class
-					&& args.length == 1) {
+			} else if (method.getName().equals("equals") && args.length == 1
+					&& method.getParameterTypes()[0].equals(Object.class)) {
 				return System.identityHashCode(proxy) == System.identityHashCode(args[0]);
-			} else {
-				return null;
-			}
-
-		}
-	}
-
-	public static class Interceptor {
-		@RuntimeType
-		public static Object intercept(@Origin Method method, @This Object self, @AllArguments Object[] args,
-				@SuperCall Callable<String> zuper) throws Exception {
-			if (method.getName().equals("hashCode") && method.getReturnType() == int.class && args.length == 0) {
-				return System.identityHashCode(self);
-			} else if (method.getName().equals("toString") && method.getReturnType() == String.class
-					&& args.length == 0) {
-				return "Identifier dummy instance of class: " + instancesOf.get(System.identityHashCode(self))
-						+ ", hashCode: " + System.identityHashCode(self);
-			} else if (method.getName().equals("equals") && method.getReturnType() == boolean.class
-					&& args.length == 1) {
-				return System.identityHashCode(self) == System.identityHashCode(args[0]);
 			} else {
 				return null;
 			}

@@ -9,16 +9,9 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.objenesis.Objenesis;
-import org.objenesis.ObjenesisStd;
 
 import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.methodrecorder.AmbiguousArgumentsUtil.AmbiguouslyDefinedMatchersException;
-import com.semantica.pocketknife.methodrecorder.MethodRecorder.FatalTestException;
-
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.implementation.FixedValue;
-import net.bytebuddy.matcher.ElementMatchers;
 
 public class MethodRecorderTest {
 
@@ -41,7 +34,7 @@ public class MethodRecorderTest {
 		public void oneParameter(Object a) {
 		}
 
-		public void oneParameter(Integer a) {
+		public void oneParameter(Class<?> a) {
 		}
 
 		public boolean twoParameters(boolean a, boolean b) {
@@ -68,9 +61,9 @@ public class MethodRecorderTest {
 			return true;
 		}
 
-		public int allTypes(Object a, boolean b, Boolean c, byte d, Byte e, short f, Short g, char h, Character i,
-				int j, Integer k, long l, Long m, float n, Float o, double p, Double q, Number r, Serializable s,
-				Object[] t) {
+		public int allTypes(SomeClass sc, Object a, boolean b, Boolean c, byte d, Byte e, short f, Short g, char h,
+				Character i, int j, Integer k, long l, Long m, float n, Float o, double p, Double q, Number r,
+				Serializable s, Object[] t) {
 			return 0;
 		}
 
@@ -369,7 +362,8 @@ public class MethodRecorderTest {
 	@Test
 	public void forAllPossibleReferenceTypesRandomIdentifierValuesShouldBeGenerated()
 			throws NoSuchMethodException, SecurityException, IllegalAccessException {
-		Matcher<SomeClass> objectMatcher = Matchers.any(SomeClass.class); // object reference, not wrapper
+		Matcher<SomeClass> someClassMatcher = Matchers.any(SomeClass.class); // class defined in same package
+		Matcher<Object> objectMatcher = Matchers.any(Object.class); // object reference, not wrapper
 		Matcher<Object[]> objectArrayMatcher = Matchers.any(Object[].class);
 		Matcher<Serializable> serializableMatcher = Matchers.any(Serializable.class); // interface
 		Matcher<Number> numberMatcher = Matchers.any(Number.class); // abstract class
@@ -381,18 +375,18 @@ public class MethodRecorderTest {
 		Matcher<Long> longMatcher = Matchers.any(Long.class);
 		Matcher<Float> floatMatcher = Matchers.any(Float.class);
 		Matcher<Double> doubleMatcher = Matchers.any(Double.class);
-		Assertions.assertEquals(
-				new MethodCall<>(
-						Methods.class.getMethod("allTypes", Object.class, boolean.class, Boolean.class, byte.class,
-								Byte.class, short.class, Short.class, char.class, Character.class, int.class,
-								Integer.class, long.class, Long.class, float.class, Float.class, double.class,
-								Double.class, Number.class, Serializable.class, Object[].class),
-						objectMatcher, booleanMatcher, booleanMatcher, byteMatcher, byteMatcher, shortMatcher,
-						shortMatcher, characterMatcher, characterMatcher, integerMatcher, integerMatcher, longMatcher,
-						longMatcher, floatMatcher, floatMatcher, doubleMatcher, doubleMatcher, numberMatcher,
-						serializableMatcher, objectArrayMatcher),
+		Assertions.assertEquals(new MethodCall<>(
+				Methods.class.getMethod("allTypes", SomeClass.class, Object.class, boolean.class, Boolean.class,
+						byte.class, Byte.class, short.class, Short.class, char.class, Character.class, int.class,
+						Integer.class, long.class, Long.class, float.class, Float.class, double.class, Double.class,
+						Number.class, Serializable.class, Object[].class),
+				someClassMatcher, objectMatcher, booleanMatcher, booleanMatcher, byteMatcher, byteMatcher, shortMatcher,
+				shortMatcher, characterMatcher, characterMatcher, integerMatcher, integerMatcher, longMatcher,
+				longMatcher, floatMatcher, floatMatcher, doubleMatcher, doubleMatcher, numberMatcher,
+				serializableMatcher, objectArrayMatcher),
 				methodRecorder.getMethodCall(methodRecorder.getProxy().allTypes(
-						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(objectMatcher, SomeClass.class),
+						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(someClassMatcher, SomeClass.class),
+						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(objectMatcher, Object.class),
 						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(booleanMatcher, boolean.class),
 						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(booleanMatcher, Boolean.class),
 						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(byteMatcher, byte.class),
@@ -415,20 +409,21 @@ public class MethodRecorderTest {
 	}
 
 	@Test
-	public void forAllReferenceTypeDefinedOutsidePackageExceptionShouldBeThrown()
+	public void forNonWrapperFinalClassesIllegalArgumentExceptionShouldBeThrown()
 			throws NoSuchMethodException, SecurityException, IllegalAccessException {
-		Matcher<Object> objectMatcher = Matchers.any(Object.class); // object reference, not wrapper
-		Assertions.assertThrows(IllegalArgumentException.class, () -> executeMethodRecorderCapture(objectMatcher));
+		@SuppressWarnings("rawtypes")
+		Matcher<Class> classMatcher = Matchers.any(Class.class);
+		Assertions.assertThrows(IllegalArgumentException.class, () -> executeMethodRecorderCapture(classMatcher));
 	}
 
-	public void executeMethodRecorderCapture(Matcher<Object> objectMatcher) throws Throwable {
+	@SuppressWarnings("rawtypes")
+	public void executeMethodRecorderCapture(Matcher<Class> classMatcher) throws Throwable {
 		try {
 			methodRecorder.getMethodCall(() -> methodRecorder.getProxy()
-					.oneParameter(methodRecorder.storeAndCreateIdInstanceOfTypeArgument(objectMatcher, Object.class)));
+					.oneParameter(methodRecorder.storeAndCreateIdInstanceOfTypeArgument(classMatcher, Class.class)));
 		} catch (FatalTestException e) {
 			throw e.getCause();
 		}
-
 	}
 
 	@Test
@@ -440,12 +435,4 @@ public class MethodRecorderTest {
 						methodRecorder.storeAndCreateIdInstanceOfTypeArgument(objectMatcher, Object.class))));
 	}
 
-	@Test
-	public void test2() throws InstantiationException, IllegalAccessException {
-		Class<?> dynamicType = new ByteBuddy().subclass(Object.class).method(ElementMatchers.named("toString"))
-				.intercept(FixedValue.value("Hello World!")).make().load(getClass().getClassLoader()).getLoaded();
-		Objenesis objenesis = new ObjenesisStd();
-		objenesis.newInstance(dynamicType);
-		Assertions.assertEquals("Hello World!", dynamicType.newInstance().toString());
-	}
 }

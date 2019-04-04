@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 
 import org.junit.jupiter.api.Assertions;
@@ -217,6 +218,47 @@ public class CodeGenerationMigrationSpikes {
 	public void shouldReturnFromByteBuddyDelegatedInstanceFromProxy() throws IllegalAccessException {
 		ClassUnderTest myInstance = getInstanceFromByteBuddyWithInstanceInterceptor(ClassUnderTest.class);
 		Assert.actual(myInstance.get2()).equalsExpected("From real instance (2) and from proxy!");
+	}
+
+	public <T> T getInstanceFromByteBuddyWithInstanceInterceptorDefinedInSamePackage(Class<T> clazz)
+			throws IllegalAccessException {
+		/*
+		 * We not only create a new subclass only for Abstract classes and Interfaces,
+		 * but also for concrete classes because otherwise two different instances (of
+		 * exactly the requested class, created by Objenesis) returned from this method
+		 * would equals(..). Now, all instances will be of a different subclass
+		 * [enhancer.setUseCache(false)] and will not equals(..) as with the equals(..)
+		 * method intercepted and implemented in the intercept(..) method.
+		 */
+		Class<?> requestedClass = clazz;
+
+		Class<? extends T> newClass = new ByteBuddy().subclass(clazz)
+				.name(this.getClass().getPackage().getName() + "." + clazz.getSimpleName() + "Proxy" + "_"
+						+ UUID.randomUUID().toString().replaceAll("-", ""))
+				.method(ElementMatchers.any()).intercept(MethodDelegation.to(new FilledGenericClassInterceptor()))
+				.make()
+				.load(ClassLoader.getSystemClassLoader(),
+						ClassLoadingStrategy.UsingLookup
+								.of(MethodHandles.privateLookupIn(this.getClass(), MethodHandles.lookup())))
+				.getLoaded();
+
+		T newInstance = objenesis.newInstance(newClass);
+		instancesOf.put(System.identityHashCode(newInstance), requestedClass);
+		return newInstance;
+	}
+
+	@Test
+	public void shouldReturnFromByteBuddyProxyInstanceDefinedInSamePackage() throws IllegalAccessException {
+		Object myInstance = getInstanceFromByteBuddyWithInstanceInterceptorDefinedInSamePackage(Object.class);
+		assert myInstance.toString()
+				.startsWith("Identifier dummy instance of class: class java.lang.Object, hashCode:");
+		assert myInstance.getClass().toString()
+				.startsWith("class com.semantica.pocketknife.methodrecorder.ObjectProxy_");
+	}
+
+	@Test
+	public void test() {
+		System.out.println(this.getClass().getPackage().getName());
 	}
 
 }
