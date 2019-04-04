@@ -1,13 +1,11 @@
 package com.semantica.pocketknife.methodrecorder;
 
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 
@@ -17,6 +15,8 @@ import org.objenesis.ObjenesisStd;
 
 import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.methodrecorder.AmbiguousArgumentsUtil.AmbiguouslyDefinedMatchersException;
+import com.semantica.pocketknife.methodrecorder.dynamicproxies.ClassLoadingStrategyFinder;
+import com.semantica.pocketknife.methodrecorder.dynamicproxies.Dummy;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -76,19 +76,15 @@ public class MethodRecorder<T> {
 	public MethodRecorder(Class<T> recordedClass) {
 		super();
 		this.recordedClass = recordedClass;
-		Class<? extends T> newClass;
-		try {
-			this.proxyClass = new ByteBuddy().subclass(recordedClass)
-					.name(this.getClass().getPackage().getName() + "." + recordedClass.getSimpleName()
-							+ "MethodRecorderProxy" + "_" + UUID.randomUUID().toString().replaceAll("-", ""))
-					.method(ElementMatchers.any()).intercept(MethodDelegation.to(new Interceptor())).make()
-					.load(this.getClass().getClassLoader(),
-							ClassLoadingStrategy.UsingLookup
-									.of(MethodHandles.privateLookupIn(this.getClass(), MethodHandles.lookup())))
-					.getLoaded();
-		} catch (IllegalAccessException e) {
-			throw new FatalTestException(String.format("Could not create subclass of class \"%s\".", recordedClass), e);
-		}
+		ClassLoadingStrategyFinder<Dummy> strategyFinder = new ClassLoadingStrategyFinder<>(Dummy.class);
+		ClassLoadingStrategy<ClassLoader> strategy = strategyFinder
+				.getClassLoadingStrategyToDefineClassInSamePackageAsClassInTargetPackage();
+		this.proxyClass = new ByteBuddy().subclass(recordedClass)
+				.name(strategyFinder.getTargetClassNameUniqueForTargetClassMatchingStrategy(recordedClass,
+						"MethodRecorderProxy"))
+				.method(ElementMatchers.any()).intercept(MethodDelegation.to(new Interceptor())).make()
+				.load(strategyFinder.getClassLoader(), strategy).getLoaded();
+
 		this.proxy = OBJENESIS.newInstance(proxyClass);
 	}
 

@@ -2,13 +2,26 @@ package com.semantica.pocketknife.methodrecorder.dynamicproxies;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.UUID;
 
 import com.semantica.pocketknife.methodrecorder.FatalTestException;
 
 import net.bytebuddy.dynamic.loading.ClassInjector;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 
-public class ClassLoadingStrategyFinder {
+public class ClassLoadingStrategyFinder<T> {
+
+	private final Class<T> classInTargetPackage;
+
+	/**
+	 *
+	 * @param classInTargetPackage The class in the current module whose package the
+	 *                             dynamic proxies will be defined in.
+	 */
+	public ClassLoadingStrategyFinder(Class<T> classInTargetPackage) {
+		super();
+		this.classInTargetPackage = classInTargetPackage;
+	}
 
 	/**
 	 * Method returning the appropriate proxy class loading strategy to for the
@@ -16,12 +29,9 @@ public class ClassLoadingStrategyFinder {
 	 * (MethodHandles::lookup), therefore, per module that invokes this method, this
 	 * method should be defined inside the same module.
 	 *
-	 * @param classInTargetPackage The class in the current module whose package the
-	 *                             dynamic proxies will be defined in.
 	 * @return The appropriate class loading strategy for Byte Buddy.
 	 */
-	public static ClassLoadingStrategy<ClassLoader> getClassLoadingStrategyToDefineClassInSamePackageAs(
-			Class<?> classInTargetPackage) {
+	public ClassLoadingStrategy<ClassLoader> getClassLoadingStrategyToDefineClassInSamePackageAsClassInTargetPackage() {
 		if (ClassInjector.UsingLookup.isAvailable()) { // Java version >= 9
 			Object privateLookup;
 			try {
@@ -40,6 +50,20 @@ public class ClassLoadingStrategyFinder {
 		} else {
 			throw new IllegalStateException("No code generation strategy available.");
 		}
+	}
+
+	public String getTargetClassNameUniqueForTargetClassMatchingStrategy(Class<?> targetClass,
+			String proxyTypeIdentifier) {
+		return getTargetClassNameMatchingStrategy(targetClass, proxyTypeIdentifier) + "_"
+				+ UUID.randomUUID().toString().replaceAll("-", "");
+	}
+
+	public String getTargetClassNameMatchingStrategy(Class<?> targetClass, String proxyTypeIdentifier) {
+		return classInTargetPackage.getPackage().getName() + "." + targetClass.getSimpleName() + proxyTypeIdentifier;
+	}
+
+	public ClassLoader getClassLoader() {
+		return classInTargetPackage.getClassLoader();
 	}
 
 }

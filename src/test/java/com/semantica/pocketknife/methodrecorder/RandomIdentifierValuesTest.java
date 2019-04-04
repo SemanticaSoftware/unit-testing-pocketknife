@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 
+import com.semantica.pocketknife.util.Assert;
 import com.semantica.pocketknife.util.MathUtil;
 
 public class RandomIdentifierValuesTest {
@@ -16,10 +17,33 @@ public class RandomIdentifierValuesTest {
 	}
 
 	@Test
+	public void shouldNotEqualHashCodesForTwoInstances() {
+		SomeClass someInstance = RandomIdentifierValues.identifierValue(SomeClass.class);
+		SomeClass otherInstance = RandomIdentifierValues.identifierValue(SomeClass.class);
+		assert someInstance.hashCode() != otherInstance.hashCode();
+	}
+
+	@Test
+	public void shouldEqualCachedClassForTwoInstances() {
+		SomeClass someInstance = RandomIdentifierValues.identifierValue(SomeClass.class);
+		SomeClass otherInstance = RandomIdentifierValues.identifierValue(SomeClass.class);
+		Assert.actual(someInstance.getClass().getName())
+				.equalsExpected("com.semantica.pocketknife.methodrecorder.dynamicproxies.SomeClassIdentifyingProxy");
+		assert someInstance.getClass().equals(otherInstance.getClass());
+	}
+
+	@Test
 	public void shouldNotEqualForTwoArrayInstances() {
 		int[] someInstance = RandomIdentifierValues.identifierValue(int[].class);
 		int[] otherInstance = RandomIdentifierValues.identifierValue(int[].class);
 		assert !someInstance.equals(otherInstance);
+	}
+
+	@Test
+	public void shouldNotEqualHashCodesForTwoArrayInstances() {
+		int[] someInstance = RandomIdentifierValues.identifierValue(int[].class);
+		int[] otherInstance = RandomIdentifierValues.identifierValue(int[].class);
+		assert someInstance.hashCode() != otherInstance.hashCode();
 	}
 
 	@Test

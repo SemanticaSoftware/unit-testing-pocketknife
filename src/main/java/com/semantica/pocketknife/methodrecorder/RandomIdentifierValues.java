@@ -5,7 +5,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 
 import org.hamcrest.Matcher;
@@ -16,6 +16,7 @@ import com.semantica.pocketknife.methodrecorder.dynamicproxies.ClassLoadingStrat
 import com.semantica.pocketknife.methodrecorder.dynamicproxies.Dummy;
 
 import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.TypeCache;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.InvocationHandlerAdapter;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -50,9 +51,10 @@ public class RandomIdentifierValues {
 
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RandomIdentifierValues.class);
 	private static final Random RANDOM = new Random();
-	private static final Objenesis objenesis = new ObjenesisStd();
-	private static final Map<Integer, Class<?>> instancesOf = new HashMap<>();
+	private static final Objenesis OBJENESIS = new ObjenesisStd();
+	private static final Map<Integer, Class<?>> INSTANCES_OF = new HashMap<>();
 	private static final CallHandler CALL_HANDLER = new CallHandler();
+	private static final TypeCache<Class<?>> TYPE_CACHE = new TypeCache<>(TypeCache.Sort.SOFT);
 
 	/**
 	 * This method returns a new identifier value (new instance or random value)
@@ -100,16 +102,17 @@ public class RandomIdentifierValues {
 			 * method intercepted and implemented in the intercept(..) method.
 			 */
 			Class<?> requestedClass = clazz;
-			Class<?> classInTargetPackage = Dummy.class;
-			ClassLoadingStrategy<ClassLoader> strategy = ClassLoadingStrategyFinder
-					.getClassLoadingStrategyToDefineClassInSamePackageAs(classInTargetPackage);
-			Class<? extends T> newClass = new ByteBuddy().subclass(clazz)
-					.name(classInTargetPackage.getPackage().getName() + "." + clazz.getSimpleName() + "IdentifyingProxy"
-							+ "_" + UUID.randomUUID().toString().replaceAll("-", ""))
+			ClassLoadingStrategyFinder<Dummy> strategyFinder = new ClassLoadingStrategyFinder<>(Dummy.class);
+			ClassLoadingStrategy<ClassLoader> strategy = strategyFinder
+					.getClassLoadingStrategyToDefineClassInSamePackageAsClassInTargetPackage();
+			Callable<Class<?>> proxyInstantiator = () -> new ByteBuddy().subclass(clazz)
+					.name(strategyFinder.getTargetClassNameMatchingStrategy(clazz, "IdentifyingProxy"))
 					.method(ElementMatchers.any()).intercept(InvocationHandlerAdapter.of(CALL_HANDLER)).make()
-					.load(classInTargetPackage.getClassLoader(), strategy).getLoaded();
-			T newInstance = objenesis.newInstance(newClass);
-			instancesOf.put(System.identityHashCode(newInstance), requestedClass);
+					.load(strategyFinder.getClassLoader(), strategy).getLoaded();
+			Class<? extends T> newClass = (Class<? extends T>) TYPE_CACHE.findOrInsert(strategyFinder.getClassLoader(),
+					requestedClass, proxyInstantiator);
+			T newInstance = OBJENESIS.newInstance(newClass);
+			INSTANCES_OF.put(System.identityHashCode(newInstance), requestedClass);
 			return newInstance;
 		}
 	}
@@ -120,7 +123,7 @@ public class RandomIdentifierValues {
 			if (method.getName().equals("hashCode") && args.length == 0) {
 				return System.identityHashCode(proxy);
 			} else if (method.getName().equals("toString") && args.length == 0) {
-				return "Identifier dummy instance of class: " + instancesOf.get(System.identityHashCode(proxy))
+				return "Identifier dummy instance of class: " + INSTANCES_OF.get(System.identityHashCode(proxy))
 						+ ", hashCode: " + System.identityHashCode(proxy);
 			} else if (method.getName().equals("equals") && args.length == 1
 					&& method.getParameterTypes()[0].equals(Object.class)) {
