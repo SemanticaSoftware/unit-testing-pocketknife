@@ -1,6 +1,7 @@
 package com.semantica.pocketknife.methodrecorder;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.function.Predicate;
 
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.methodrecorder.AmbiguousArgumentsUtil.AmbiguouslyDefinedMatchersException;
+import com.semantica.pocketknife.mock.service.support.components.DynamicMockingMethodRecorder;
 
 public class MethodRecorderTest {
 
@@ -155,6 +157,24 @@ public class MethodRecorderTest {
 	public void shouldRecordVoidMethodInvocationFluently_Method() throws NoSuchMethodException, SecurityException {
 		assert methodRecorder.getMethod(() -> methodRecorder.getProxy().voidMethod())
 				.equals(Methods.class.getMethod("voidMethod"));
+	}
+
+	@Test
+	public void shouldRecordVoidMethodInvocationFluently_Method_InvokedWithReflection() throws NoSuchMethodException,
+			SecurityException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+		MethodCall<Method> methodCallWithMatchingArguments = methodRecorder
+				.getMethodCall(Methods.class.getMethod("voidMethod").invoke(methodRecorder.getProxy()));
+		System.out.println(methodCallWithMatchingArguments);
+	}
+
+	@Test
+	public void shouldRecordVoidMethodInvocationFluently_Method_InvokedWithReflection_CustomMethodRecorder()
+			throws NoSuchMethodException, SecurityException, IllegalAccessException, IllegalArgumentException,
+			InvocationTargetException {
+		methodRecorder = new DynamicMockingMethodRecorder<>(Methods.class);
+		MethodCall<Method> methodCallWithMatchingArguments = methodRecorder
+				.getMethodCall(Methods.class.getMethod("voidMethod").invoke(methodRecorder.getProxy()));
+		System.out.println(methodCallWithMatchingArguments);
 	}
 
 	@Test

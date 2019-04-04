@@ -51,7 +51,7 @@ public class InlineMocker {
 
 	@SuppressWarnings("unchecked")
 	public <S> S mock(Class<S> clazz) {
-		S proxy = (S) Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] { clazz }, handler);
+		S proxy = (S) Proxy.newProxyInstance(clazz.getClassLoader(), new Class[] { clazz }, handler);
 		exactToMatchingMethodConverter.register(clazz, proxy);
 		verificationStore.newCallsRegistryFor(proxy);
 		return proxy;

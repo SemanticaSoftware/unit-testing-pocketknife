@@ -9,6 +9,7 @@ import java.util.Optional;
 
 import com.semantica.pocketknife.calls.MethodCall;
 import com.semantica.pocketknife.mock.ExactToMatchingMethodConverter;
+import com.semantica.pocketknife.mock.MockedInterface;
 import com.semantica.pocketknife.mock.dto.MatcherCapture;
 import com.semantica.pocketknife.mock.dto.QualifiedMethodCall;
 import com.semantica.pocketknife.mock.service.support.components.DynamicMockingMethodRecorder;
@@ -20,6 +21,7 @@ public class InlineMockerMethodConverter implements ExactToMatchingMethodConvert
 	private final Map<Class<?>, DynamicMockingMethodRecorder<?>> methodRecorders = new HashMap<>();
 
 	private final CapturedMatchersStore matchersUsedInConversionStore;
+	private final boolean debug = false;
 
 	public static interface CapturedMatchersStore {
 		public Iterator<MatcherCapture<?>> getMatcherCapturesIterator();
@@ -52,6 +54,17 @@ public class InlineMockerMethodConverter implements ExactToMatchingMethodConvert
 		DynamicMockingMethodRecorder<?> methodRecorder = setupMethodRecorderWithMatchers(proxy, matcherCaptures);
 		try {
 			// Invoke the method on its proxy
+
+			// TODO: REMOVE THIS DEBUGGING CODE
+			if (debug) {
+				MockedInterface instance = (MockedInterface) methodRecorder.getProxy();
+				System.out.println(instance.toString());
+				instance.hashCode();
+				instance.getClass();
+				instance.equals(instance);
+				instance.notStubbed();
+				instance.stubbedMethod(12);
+			}
 			MethodCall<Method> methodCallWithMatchingArguments = methodRecorder
 					.getMethodCall(methodCall.getMethod().invoke(methodRecorder.getProxy(), methodCall.getArgs()));
 			return new QualifiedMethodCall<>(proxy, methodCallWithMatchingArguments);
