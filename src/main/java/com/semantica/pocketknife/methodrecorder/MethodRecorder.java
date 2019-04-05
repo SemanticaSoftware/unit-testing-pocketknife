@@ -1,6 +1,5 @@
 package com.semantica.pocketknife.methodrecorder;
 
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -21,11 +20,11 @@ import com.semantica.pocketknife.methodrecorder.dynamicproxies.Dummy;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import net.bytebuddy.implementation.InvocationHandlerAdapter;
+import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.AllArguments;
 import net.bytebuddy.implementation.bind.annotation.Origin;
 import net.bytebuddy.implementation.bind.annotation.RuntimeType;
-import net.bytebuddy.implementation.bind.annotation.SuperCall;
+import net.bytebuddy.implementation.bind.annotation.Super;
 import net.bytebuddy.implementation.bind.annotation.This;
 import net.bytebuddy.matcher.ElementMatchers;
 
@@ -80,17 +79,19 @@ public class MethodRecorder<T> {
 		ClassLoadingStrategyFinder<Dummy> strategyFinder = new ClassLoadingStrategyFinder<>(Dummy.class);
 		ClassLoadingStrategy<ClassLoader> strategy = strategyFinder
 				.getClassLoadingStrategyToDefineClassInSamePackageAsClassInTargetPackage();
+		this.proxyClass = new ByteBuddy().subclass(recordedClass)
+				.name(strategyFinder
+						.getTargetClassNameUniqueForTargetClassMatchingStrategy(recordedClass, "MethodRecorderProxy"))
+				.method(ElementMatchers.any())
+				.intercept(MethodDelegation.withDefaultConfiguration()
+						.filter(ElementMatchers.not(ElementMatchers.isDeclaredBy(Object.class))).to(new Interceptor()))
+				.make().load(strategyFinder.getClassLoader(), strategy).getLoaded();
+
 //		this.proxyClass = new ByteBuddy().subclass(recordedClass)
 //				.name(strategyFinder.getTargetClassNameUniqueForTargetClassMatchingStrategy(recordedClass,
 //						"MethodRecorderProxy"))
-//				.method(ElementMatchers.any()).intercept(MethodDelegation.to(new Interceptor())).make()
+//				.method(ElementMatchers.any()).intercept(InvocationHandlerAdapter.of(new CallHandler())).make()
 //				.load(strategyFinder.getClassLoader(), strategy).getLoaded();
-
-		this.proxyClass = new ByteBuddy().subclass(recordedClass)
-				.name(strategyFinder.getTargetClassNameUniqueForTargetClassMatchingStrategy(recordedClass,
-						"MethodRecorderProxy"))
-				.method(ElementMatchers.any()).intercept(InvocationHandlerAdapter.of(new CallHandler())).make()
-				.load(strategyFinder.getClassLoader(), strategy).getLoaded();
 
 		this.proxy = OBJENESIS.newInstance(proxyClass);
 	}
@@ -125,35 +126,6 @@ public class MethodRecorder<T> {
 		return proxy;
 	}
 
-	private class CallHandler implements InvocationHandler {
-		@Override
-		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-			System.out.println("In method recorder intercept method!");
-			if (method.getName().equals("toString") && args.length == 0) {
-				return "Proxy recording method invocations on: " + recordedClass + ", identity hashCode: "
-						+ System.identityHashCode(proxy);
-			} else if (method.getName().equals("hashCode") && args.length == 0) {
-				return System.identityHashCode(proxy);
-			} else if (method.getName().equals("equals") && args.length == 1
-					&& method.getParameterTypes()[0].equals(Object.class)) {
-				return System.identityHashCode(proxy) == System.identityHashCode(args[0]);
-			}
-			AmbiguousArgumentsUtil.checkForIdentifierAmbiguity(args, matchers);
-			MethodRecorder.this.method = method;
-			MethodRecorder.this.methodCall = new MethodCall<>(method, substituteWithMatchingArgs(args));
-			MethodRecorder.this.captureNumber = 0;
-			MethodRecorder.this.captureProcessedNumber = 0;
-			if (!MethodRecorder.this.matchers.isEmpty()) {
-				throw new IllegalStateException(
-						"Matchers not empty after substituting args with matchers for constructing new MethodCall.");
-			}
-			Object defaultValue = DefaultValues.defaultValue(method.getReturnType());
-			log.trace("Returning {} for method {} in interceptor.", defaultValue, method);
-			return defaultValue;
-		}
-
-	}
-
 	public class Interceptor {
 		/**
 		 * Method interceptor that does not call back any method on the superclass but
@@ -170,16 +142,10 @@ public class MethodRecorder<T> {
 		 */
 		@RuntimeType
 		public Object intercept(@Origin Method method, @This Object self, @AllArguments Object[] args,
-				@SuperCall Callable<String> zuper) throws Exception {
-			System.out.println("In method recorder intercept method!");
-			if (method.getName().equals("toString") && args.length == 0) {
-				return "Proxy recording method invocations on: " + recordedClass + ", identity hashCode: "
-						+ System.identityHashCode(self);
-			} else if (method.getName().equals("hashCode") && args.length == 0) {
-				return System.identityHashCode(self);
-			} else if (method.getName().equals("equals") && args.length == 1
-					&& method.getParameterTypes()[0].equals(Object.class)) {
-				return System.identityHashCode(self) == System.identityHashCode(args[0]);
+				@Super(strategy = Super.Instantiation.UNSAFE) Object zuper) throws Exception {
+			Optional<Object> toStringHashCodeEqualsReturnValue = toStringHashCodeEquals(self, method, args);
+			if (toStringHashCodeEqualsReturnValue.isPresent()) {
+				return toStringHashCodeEqualsReturnValue.get();
 			}
 			AmbiguousArgumentsUtil.checkForIdentifierAmbiguity(args, matchers);
 			MethodRecorder.this.method = method;
@@ -193,6 +159,20 @@ public class MethodRecorder<T> {
 			Object defaultValue = DefaultValues.defaultValue(method.getReturnType());
 			log.trace("Returning {} for method {} in interceptor.", defaultValue, method);
 			return defaultValue;
+		}
+
+		private Optional<Object> toStringHashCodeEquals(Object proxy, Method method, Object[] args) {
+			if (method.getName().equals("toString") && args.length == 0) {
+				return Optional.of("Proxy recording method invocations on: " + recordedClass + ", identity hashCode: "
+						+ System.identityHashCode(proxy));
+			} else if (method.getName().equals("hashCode") && args.length == 0) {
+				return Optional.of(System.identityHashCode(proxy));
+			} else if (method.getName().equals("equals") && args.length == 1
+					&& method.getParameterTypes()[0].equals(Object.class)) {
+				return Optional.of(System.identityHashCode(proxy) == System.identityHashCode(args[0]));
+			} else {
+				return Optional.empty();
+			}
 		}
 	}
 
