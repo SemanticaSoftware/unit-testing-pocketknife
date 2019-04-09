@@ -21,7 +21,7 @@ module com.semantica.pocketknife {
 	opens com.semantica.pocketknife.calls to org.apache.commons.lang3;
 	opens com.semantica.pocketknife to com.fasterxml.jackson.databind;
 	opens com.semantica.pocketknife.pojo to org.apache.commons.lang3;
-	opens com.semantica.pocketknife.pojo.example to org.apache.commons.lang3;
+//	opens com.semantica.pocketknife.pojo.example to org.apache.commons.lang3;
 
 	requires com.fasterxml.jackson.core;
 	requires com.fasterxml.jackson.databind;

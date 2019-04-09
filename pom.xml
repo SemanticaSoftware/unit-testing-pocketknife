@@ -16,7 +16,7 @@
 		<com.fasterxml.jackson.artifacts.version>2.9.8</com.fasterxml.jackson.artifacts.version>
 		<junit.jupiter.version>5.4.0</junit.jupiter.version>
 		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
-		<java.version>10</java.version>
+		<java.version>11</java.version>
 	</properties>
 
 	<dependencies>
@@ -100,102 +100,57 @@
 			<scope>test</scope>
 		</dependency>
 
-
 	</dependencies>
 
 
 	<build>
 		<pluginManagement>
 			<plugins>
-
-
 				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>3.0.0-M2</version>
-					<executions>
-						<execution>
-							<id>enforce-maven</id>
-							<goals>
-								<goal>enforce</goal>
-							</goals>
-							<configuration>
-								<rules>
-									<requireMavenVersion>
-										<version>3.3.9</version>
-									</requireMavenVersion>
-								</rules>
-							</configuration>
-						</execution>
-					</executions>
-				</plugin>
-
-
-				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>versions-maven-plugin</artifactId>
-					<version>2.5</version>
-					<configuration>
-						<generateBackupPoms>false</generateBackupPoms>
-					</configuration>
-				</plugin>
-
-				<plugin>
-					<!-- Needed by the ReflectionPojoTester which uses Parameter.getName() -->
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>${maven-compiler-plugin.version}</version>
 					<configuration>
+						<!-- Needed by the ReflectionPojoTester which uses Parameter.getName() -->
 						<parameters>true</parameters>
 						<testCompilerArgument>-parameters</testCompilerArgument>
 						<source>${java.version}</source>
 						<target>${java.version}</target>
 					</configuration>
 				</plugin>
-
+				<!-- <plugin> JUnit 5 requires Surefire version 2.22.1 or higher <artifactId>maven-surefire-plugin</artifactId> 
+					<version>2.22.1</version> <configuration> <forkCount>0</forkCount> <reuseForks>false</reuseForks> 
+					</configuration> </plugin> -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-toolchains-plugin</artifactId>
-					<version>1.1</version>
-					<configuration>
-						<toolchains>
-							<jdk>
-								<version>11</version>
-								<vendor>oracle</vendor>
-							</jdk>
-						</toolchains>
-					</configuration>
+					<artifactId>maven-dependency-plugin</artifactId>
+					<version>3.1.1</version>
 					<executions>
 						<execution>
+							<id>copy-dependencies</id>
+							<phase>package</phase>
 							<goals>
-								<goal>toolchain</goal>
+								<goal>copy-dependencies</goal>
 							</goals>
+							<configuration>
+								<outputDirectory>${project.build.directory}/lib</outputDirectory>
+								<overWriteReleases>false</overWriteReleases>
+								<overWriteSnapshots>false</overWriteSnapshots>
+								<overWriteIfNewer>true</overWriteIfNewer>
+							</configuration>
 						</execution>
 					</executions>
 				</plugin>
-				<!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-shade-plugin</artifactId> 
-					<executions> <execution> <phase>package</phase> <goals> <goal>shade</goal> 
-					</goals> <configuration> <transformers> <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"> 
-					<manifestEntries> <Main-Class>com.semantica.dms.imapreader.Application</Main-Class> 
-					<Build-Number>${project.version}</Build-Number> </manifestEntries> </transformer> 
-					</transformers> </configuration> </execution> </executions> </plugin> -->
-				<plugin>
-					<groupId>de.sormuras.junit</groupId>
-					<artifactId>junit-platform-maven-plugin</artifactId>
-					<version>1.0.0-M5</version>
-					<extensions>true</extensions> <!-- Necessary to execute it in 'test' phase. -->
-				</plugin>
-				<plugin>
-					<!-- JUnit 5 requires Surefire version 2.22.1 or higher -->
-					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.22.1</version>
- 					<configuration>
-						<argLine>
-							--illegal-access=permit
-						</argLine>
-					</configuration>
-				</plugin>
 			</plugins>
 		</pluginManagement>
+
+		<plugins>
+			<plugin>
+				<groupId>de.sormuras.junit</groupId>
+				<artifactId>junit-platform-maven-plugin</artifactId>
+				<version>1.0.0-M5</version>
+				<extensions>true</extensions> <!-- Necessary to execute it in 'test' phase. -->
+			</plugin>
+		</plugins>
 	</build>
 </project>

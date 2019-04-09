@@ -1,0 +1,13 @@
+//
+// Patch, i.e. configure, Java module system at test-runtime
+//
+
+// Allow deep reflection for test discovery - repeat for each test library you need
+--add-opens
+  com.semantica.pocketknife/com.semantica.pocketknife=org.junit.platform.commons
+--add-opens
+  com.semantica.pocketknife/com.semantica.pocketknife.pojo.example=org.apache.commons.lang3
+
+// "requires org.junit.jupiter.api"
+--add-reads
+  com.semantica.pocketknife=org.junit.jupiter.api
