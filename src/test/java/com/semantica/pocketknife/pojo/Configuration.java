@@ -1,4 +1,4 @@
-package com.semantica.pocketknife.pojo.example;
+package com.semantica.pocketknife.pojo;
 
 import java.io.Serializable;
 
