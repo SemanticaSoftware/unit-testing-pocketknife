@@ -27,7 +27,7 @@ open module com.semantica.pocketknife {
 	requires org.hamcrest;
 	requires org.objenesis;
 	requires org.opentest4j;
-	requires slf4j.api;
+    requires org.slf4j;
 	requires net.bytebuddy;
 	requires jdk.unsupported;
 

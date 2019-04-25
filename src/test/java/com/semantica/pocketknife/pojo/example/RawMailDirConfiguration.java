@@ -1,19 +1,19 @@
-package com.semantica.pocketknife.pojo;
+package com.semantica.pocketknife.pojo.example;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 
-public class MessageQueueConfiguration {
+public class RawMailDirConfiguration {
 
 	private boolean enabled;
 	private String path;
 
-	public MessageQueueConfiguration() {
+	public RawMailDirConfiguration() {
 		super();
 	}
 
-	public MessageQueueConfiguration(boolean enabled, String path) {
+	public RawMailDirConfiguration(boolean enabled, String path) {
 		super();
 		this.enabled = enabled;
 		this.path = path;

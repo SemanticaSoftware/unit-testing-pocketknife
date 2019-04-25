@@ -72,6 +72,7 @@ public class MethodRecorderTest {
 	}
 
 	MethodRecorder<Methods> methodRecorder;
+	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MethodRecorderTest.class);
 
 	@BeforeEach
 	public void setup() {
@@ -236,6 +237,7 @@ public class MethodRecorderTest {
 								.storeAndCreateIdInstanceOfTypeArgument(matcher, int.class))))
 				.equals(new MethodCall<>(Methods.class.getMethod("oneParameter", int.class), matcher));
 		System.out.printf("Random identifier used to retrieve matcher: %d", randomIntermediateIdentifier);
+		log.info("Random identifier used to retrieve matcher: {}", randomIntermediateIdentifier);
 	}
 
 	@Test
@@ -248,6 +250,7 @@ public class MethodRecorderTest {
 								.storeAndCreateIdInstanceOfTypeArgument(intPredicate, int.class))))
 				.equals(new MethodCall<>(Methods.class.getMethod("oneParameter", int.class), intPredicate));
 		System.out.printf("Random identifier used to retrieve matcher: %d", randomIntermediateIdentifier);
+		log.info("Random identifier used to retrieve matcher: {}", randomIntermediateIdentifier);
 	}
 
 	@Test

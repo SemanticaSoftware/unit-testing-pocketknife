@@ -1,4 +1,4 @@
-package com.semantica.pocketknife.pojo;
+package com.semantica.pocketknife.pojo.example;
 
 import java.util.List;
 

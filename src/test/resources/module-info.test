@@ -1,46 +1,11 @@
 //
 // Patch, i.e. configure, Java module system at test-runtime
 //
+// junit and mockito reads are provided by the junit-platform-maven-plugin
 --add-reads
-  com.semantica.pocketknife=log4j.slf4j.impl
---add-reads
-  com.semantica.pocketknife=org.apache.logging.log4j
---add-reads
-  com.semantica.pocketknife=org.mockito
+com.semantica.pocketknife=org.apache.logging.log4j
 
-
-// Allow deep reflection for test discovery - repeat for each test library you need
---add-exports
-  com.semantica.pocketknife/com.semantica.pocketknife=org.junit.platform.commons
---add-exports
-  com.semantica.pocketknife/com.semantica.pocketknife.calls=org.junit.platform.commons
---add-exports
-  com.semantica.pocketknife/com.semantica.pocketknife.methodrecorder=org.junit.platform.commons
---add-exports
-  com.semantica.pocketknife/com.semantica.pocketknife.mock=org.junit.platform.commons
---add-exports
-  com.semantica.pocketknife/com.semantica.pocketknife.mock.it=org.junit.platform.commons
---add-exports
-  com.semantica.pocketknife/com.semantica.pocketknife.pojo=org.junit.platform.commons
-//--add-exports
-//  com.semantica.pocketknife/com.semantica.pocketknife.pojo.example=org.junit.platform.commons
---add-exports
-  com.semantica.pocketknife/com.semantica.pocketknife.util=org.junit.platform.commons
-  
---add-opens
-  com.semantica.pocketknife/com.semantica.pocketknife=org.junit.platform.commons
-//--add-opens
-//  com.semantica.pocketknife/com.semantica.pocketknife.pojo.example=org.apache.commons.lang3
---add-opens
-  com.semantica.pocketknife/com.semantica.pocketknife.pojo=org.apache.commons.lang3
-
-  
---add-opens
-  com.semantica.pocketknife/com.semantica.pocketknife=org.mockito
---add-opens
-  com.semantica.pocketknife/com.semantica.pocketknife.calls=org.mockito
-
-// "requires org.junit.jupiter.api"
+// Allow deep reflection for test discovery
 --add-opens
   com.semantica.pocketknife/com.semantica.pocketknife=org.junit.platform.commons
 --add-opens
@@ -53,10 +18,13 @@
   com.semantica.pocketknife/com.semantica.pocketknife.mock.it=org.junit.platform.commons
 --add-opens
   com.semantica.pocketknife/com.semantica.pocketknife.pojo=org.junit.platform.commons
-//--add-opens
-//  com.semantica.pocketknife/com.semantica.pocketknife.pojo.example=org.junit.platform.commons
 --add-opens
   com.semantica.pocketknife/com.semantica.pocketknife.util=org.junit.platform.commons
   
---add-reads
-  com.semantica.pocketknife=org.junit.jupiter.api
+//Not sure why these opens are not needed with eclipse
+//--add-opens
+//com.semantica.pocketknife/com.semantica.pocketknife.calls=org.apache.commons.lang3
+//--add-opens
+//com.semantica.pocketknife/com.semantica.pocketknife.pojo=org.apache.commons.lang3
+//--add-opens
+//com.semantica.pocketknife/com.semantica.pocketknife.pojo.example=org.apache.commons.lang3
